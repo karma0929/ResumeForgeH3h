@@ -21,6 +21,8 @@ async function requireSnapshot() {
 }
 
 export async function startCheckoutAction(formData: FormData) {
+  let redirectUrl = "/dashboard/billing";
+
   try {
     const snapshot = await requireSnapshot();
     const plan = assertEnumValue(
@@ -39,22 +41,31 @@ export async function startCheckoutAction(formData: FormData) {
       cancelUrl,
     });
 
-    trackEvent("billing_checkout_started", {
-      userId: snapshot.user.id,
-      plan,
-      mode: result.mode,
-    });
+    try {
+      trackEvent("billing_checkout_started", {
+        userId: snapshot.user.id,
+        plan,
+        mode: result.mode,
+      });
+    } catch (error) {
+      console.error("BILLING TRACK EVENT ERROR:", error);
+    }
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/billing");
-    redirect(result.redirectUrl);
+    redirectUrl = result.redirectUrl;
   } catch (error) {
+    console.error("BILLING ERROR:", error);
     const message = error instanceof Error ? error.message : "Billing checkout failed.";
-    redirect(`/dashboard/billing?error=${encodeURIComponent(message)}`);
+    redirectUrl = `/dashboard/billing?error=${encodeURIComponent(message)}`;
   }
+
+  redirect(redirectUrl);
 }
 
 export async function openBillingPortalAction() {
+  let redirectUrl = "/dashboard/billing";
+
   try {
     const snapshot = await requireSnapshot();
     const returnUrl = `${getAppBaseUrl()}/dashboard/billing`;
@@ -64,14 +75,21 @@ export async function openBillingPortalAction() {
       returnUrl,
     });
 
-    trackEvent("billing_portal_opened", {
-      userId: snapshot.user.id,
-      mode: result.mode,
-    });
+    try {
+      trackEvent("billing_portal_opened", {
+        userId: snapshot.user.id,
+        mode: result.mode,
+      });
+    } catch (error) {
+      console.error("BILLING TRACK EVENT ERROR:", error);
+    }
 
-    redirect(result.redirectUrl);
+    redirectUrl = result.redirectUrl;
   } catch (error) {
+    console.error("BILLING ERROR:", error);
     const message = error instanceof Error ? error.message : "Billing portal is unavailable.";
-    redirect(`/dashboard/billing?error=${encodeURIComponent(message)}`);
+    redirectUrl = `/dashboard/billing?error=${encodeURIComponent(message)}`;
   }
+
+  redirect(redirectUrl);
 }

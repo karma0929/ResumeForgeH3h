@@ -32,13 +32,13 @@ function reportNonCriticalAuthSideEffectError(action: "login" | "signup", error:
 
 export async function loginAction(formData: FormData) {
   const fallbackNextPath = safeNextPath(formData) ?? "/dashboard";
-  let nextPath = fallbackNextPath;
+  let redirectPath = fallbackNextPath;
 
   try {
-    nextPath = readInternalPath(formData) ?? "/dashboard";
-
     const email = readEmailField(formData);
     const password = readPasswordField(formData);
+    redirectPath = readInternalPath(formData) ?? "/dashboard";
+
     const user = await findUserForLogin(email);
 
     if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
@@ -64,11 +64,7 @@ export async function loginAction(formData: FormData) {
       reportNonCriticalAuthSideEffectError("login", error);
     }
   } catch (error) {
-    console.error("LOGIN FAILED RAW ERROR:", error);
-    console.error(
-      "LOGIN FAILED MESSAGE:",
-      error instanceof Error ? error.message : String(error),
-    );
+    console.error("AUTH ERROR:", error);
 
     const message =
       error instanceof ValidationError || error instanceof AuthenticationError
@@ -76,22 +72,21 @@ export async function loginAction(formData: FormData) {
         : "Unable to sign in.";
 
     const nextQuery = fallbackNextPath ? `&next=${encodeURIComponent(fallbackNextPath)}` : "";
-    redirect(`/login?error=${encodeURIComponent(message)}${nextQuery}`);
+    redirectPath = `/login?error=${encodeURIComponent(message)}${nextQuery}`;
   }
 
-  redirect(nextPath);
+  redirect(redirectPath);
 }
 
 export async function signupAction(formData: FormData) {
   const fallbackNextPath = safeNextPath(formData) ?? "/dashboard";
-  let nextPath = fallbackNextPath;
+  let redirectPath = fallbackNextPath;
 
   try {
-    nextPath = readInternalPath(formData) ?? "/dashboard";
-
     const email = readEmailField(formData);
     const name = readStringField(formData, "name", { required: true, min: 2, max: 80 });
     const password = readPasswordField(formData);
+    redirectPath = readInternalPath(formData) ?? "/dashboard";
 
     const user = await createCredentialUser({
       email,
@@ -118,11 +113,7 @@ export async function signupAction(formData: FormData) {
       reportNonCriticalAuthSideEffectError("signup", error);
     }
   } catch (error) {
-    console.error("SIGNUP FAILED RAW ERROR:", error);
-    console.error(
-      "SIGNUP FAILED MESSAGE:",
-      error instanceof Error ? error.message : String(error),
-    );
+    console.error("AUTH ERROR:", error);
 
     const message =
       error instanceof ValidationError || error instanceof AuthenticationError
@@ -130,10 +121,10 @@ export async function signupAction(formData: FormData) {
         : "Unable to create account.";
 
     const nextQuery = fallbackNextPath ? `&next=${encodeURIComponent(fallbackNextPath)}` : "";
-    redirect(`/signup?error=${encodeURIComponent(message)}${nextQuery}`);
+    redirectPath = `/signup?error=${encodeURIComponent(message)}${nextQuery}`;
   }
 
-  redirect(nextPath);
+  redirect(redirectPath);
 }
 
 export async function demoLoginAction() {
