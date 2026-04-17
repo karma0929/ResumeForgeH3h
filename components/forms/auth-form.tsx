@@ -1,5 +1,11 @@
+"use client";
+
 import Link from "next/link";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import type { FormEvent } from "react";
+import { Button } from "@/components/ui/button";
+import type { AuthActionResult } from "@/lib/actions/auth";
 
 export function AuthForm({
   title,
@@ -13,13 +19,35 @@ export function AuthForm({
 }: {
   title: string;
   description: string;
-  action: (formData: FormData) => Promise<void>;
+  action: (formData: FormData) => Promise<AuthActionResult>;
   submitLabel: string;
   footer: React.ReactNode;
   error?: string | null;
   nextPath?: string | null;
   includeName?: boolean;
 }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [localError, setLocalError] = useState(error ?? null);
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    setLocalError(null);
+
+    startTransition(async () => {
+      const result = await action(formData);
+
+      if (result.success) {
+        router.push(result.redirectTo);
+        router.refresh();
+        return;
+      }
+
+      setLocalError(result.error);
+    });
+  }
+
   return (
     <div className="w-full max-w-md rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm">
       <Link className="text-sm font-medium text-slate-500" href="/">
@@ -27,17 +55,18 @@ export function AuthForm({
       </Link>
       <h1 className="mt-6 text-3xl font-semibold tracking-tight text-slate-950">{title}</h1>
       <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
-      {error ? (
+      {localError ? (
         <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
+          {localError}
         </div>
       ) : null}
-      <form action={action} className="mt-8 space-y-5">
+      <form className="mt-8 space-y-5" onSubmit={onSubmit}>
         {includeName ? (
           <label className="block">
             <span className="mb-2 block text-sm font-medium text-slate-700">Full name</span>
             <input
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+              disabled={pending}
               name="name"
               placeholder="Aarav Patel"
               required
@@ -49,6 +78,7 @@ export function AuthForm({
           <span className="mb-2 block text-sm font-medium text-slate-700">Email</span>
           <input
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+            disabled={pending}
             name="email"
             placeholder="you@example.com"
             required
@@ -59,6 +89,7 @@ export function AuthForm({
           <span className="mb-2 block text-sm font-medium text-slate-700">Password</span>
           <input
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+            disabled={pending}
             minLength={8}
             name="password"
             placeholder="At least 8 characters"
@@ -67,7 +98,9 @@ export function AuthForm({
           />
         </label>
         {nextPath ? <input name="next" type="hidden" value={nextPath} /> : null}
-        <SubmitButton className="w-full">{submitLabel}</SubmitButton>
+        <Button className="w-full" disabled={pending} type="submit">
+          {pending ? "Please wait..." : submitLabel}
+        </Button>
       </form>
       <div className="mt-6 text-sm text-slate-600">{footer}</div>
     </div>

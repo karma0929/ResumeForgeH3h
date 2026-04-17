@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ArrowRight, Check, ShieldCheck, Sparkles } from "lucide-react";
-import { startCheckoutAction } from "@/lib/actions/billing";
 import { getSessionIdentity } from "@/lib/auth";
 import { getAppSnapshot } from "@/lib/data";
 import { BILLING_PLANS } from "@/lib/billing/plans";
 import { Card } from "@/components/ui/card";
+import { BillingActionButton } from "@/components/billing/billing-action-button";
 import { allowDevelopmentMocks } from "@/lib/env";
 import { formatCurrency } from "@/lib/utils";
 
@@ -97,12 +97,9 @@ export default async function PricingPage() {
                       Manage downgrade in billing
                     </Link>
                   ) : (
-                    <form action={startCheckoutAction}>
-                      <input name="plan" type="hidden" value={plan.plan} />
-                      <button className="inline-flex h-11 w-full items-center justify-center rounded-full bg-slate-900 px-4 text-sm font-medium text-white">
-                        {isFree ? "Switch to Free" : plan.cta}
-                      </button>
-                    </form>
+                    <BillingActionButton className="w-full" mode="checkout" plan={plan.plan}>
+                      {isFree ? "Switch to Free" : plan.cta}
+                    </BillingActionButton>
                   )
                 ) : (
                   <Link

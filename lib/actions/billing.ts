@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { getSessionIdentity } from "@/lib/auth";
 import { trackEvent } from "@/lib/analytics";
-import { getAppBaseUrl } from "@/lib/env";
+import { getAppBaseUrl, isProductionEnvironment } from "@/lib/env";
 import { createCheckoutFlow, createPortalFlow } from "@/lib/billing/service";
 import { getAppSnapshot } from "@/lib/data";
+import { AuthenticationError } from "@/lib/errors";
 import type { SubscriptionPlan } from "@/lib/types";
 import { assertEnumValue, readStringField } from "@/lib/validation";
 
@@ -14,16 +14,60 @@ async function requireSnapshot() {
   const identity = await getSessionIdentity();
 
   if (!identity) {
-    redirect("/login");
+    throw new AuthenticationError("Please sign in to manage billing.");
   }
 
   return getAppSnapshot(identity);
 }
 
-export async function startCheckoutAction(formData: FormData) {
+function validateStripeConfigConsistency(): string | null {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim() ?? "";
+  const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim() ?? "";
+  const proPriceId = process.env.STRIPE_PRICE_PRO_MONTHLY?.trim() ?? "";
+  const premiumPriceId = process.env.STRIPE_PRICE_PREMIUM_REVIEW_MONTHLY?.trim() ?? "";
+
+  if (!stripeSecretKey) {
+    return null;
+  }
+
+  const usesTestSecret = stripeSecretKey.startsWith("sk_test_");
+  const usesLiveSecret = stripeSecretKey.startsWith("sk_live_");
+
+  if (!usesTestSecret && !usesLiveSecret) {
+    return "STRIPE_SECRET_KEY must start with sk_test_ or sk_live_.";
+  }
+
+  if (!isProductionEnvironment && usesLiveSecret) {
+    return "Use Stripe test credentials in local/preview environments.";
+  }
+
+  if (usesTestSecret) {
+    if (!stripeWebhookSecret.startsWith("whsec_")) {
+      return "STRIPE_WEBHOOK_SECRET is invalid for Stripe test mode.";
+    }
+
+    if (!proPriceId.startsWith("price_") || !premiumPriceId.startsWith("price_")) {
+      return "Stripe test mode requires STRIPE_PRICE_* values from test products.";
+    }
+  }
+
+  return null;
+}
+
+export type BillingActionResult =
+  | { success: true; redirectTo: string }
+  | { success: false; error: string };
+
+export async function startCheckoutAction(formData: FormData): Promise<BillingActionResult> {
   let redirectUrl = "/dashboard/billing";
 
   try {
+    const stripeConfigError = validateStripeConfigConsistency();
+
+    if (stripeConfigError) {
+      throw new Error(stripeConfigError);
+    }
+
     const snapshot = await requireSnapshot();
     const plan = assertEnumValue(
       readStringField(formData, "plan", { required: true, max: 32 }),
@@ -56,17 +100,28 @@ export async function startCheckoutAction(formData: FormData) {
     redirectUrl = result.redirectUrl;
   } catch (error) {
     console.error("BILLING ERROR:", error);
-    const message = error instanceof Error ? error.message : "Billing checkout failed.";
-    redirectUrl = `/dashboard/billing?error=${encodeURIComponent(message)}`;
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Billing checkout failed.",
+    };
   }
 
-  redirect(redirectUrl);
+  return {
+    success: true,
+    redirectTo: redirectUrl,
+  };
 }
 
-export async function openBillingPortalAction() {
+export async function openBillingPortalAction(): Promise<BillingActionResult> {
   let redirectUrl = "/dashboard/billing";
 
   try {
+    const stripeConfigError = validateStripeConfigConsistency();
+
+    if (stripeConfigError) {
+      throw new Error(stripeConfigError);
+    }
+
     const snapshot = await requireSnapshot();
     const returnUrl = `${getAppBaseUrl()}/dashboard/billing`;
 
@@ -87,9 +142,14 @@ export async function openBillingPortalAction() {
     redirectUrl = result.redirectUrl;
   } catch (error) {
     console.error("BILLING ERROR:", error);
-    const message = error instanceof Error ? error.message : "Billing portal is unavailable.";
-    redirectUrl = `/dashboard/billing?error=${encodeURIComponent(message)}`;
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Billing portal is unavailable.",
+    };
   }
 
-  redirect(redirectUrl);
+  return {
+    success: true,
+    redirectTo: redirectUrl,
+  };
 }

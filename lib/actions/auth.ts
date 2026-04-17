@@ -30,7 +30,11 @@ function reportNonCriticalAuthSideEffectError(action: "login" | "signup", error:
   console.error(`[AUTH ${action.toUpperCase()} SIDE EFFECT ERROR]`, error);
 }
 
-export async function loginAction(formData: FormData) {
+export type AuthActionResult =
+  | { success: true; redirectTo: string }
+  | { success: false; error: string };
+
+export async function loginAction(formData: FormData): Promise<AuthActionResult> {
   const fallbackNextPath = safeNextPath(formData) ?? "/dashboard";
   let redirectPath = fallbackNextPath;
 
@@ -63,6 +67,11 @@ export async function loginAction(formData: FormData) {
     } catch (error) {
       reportNonCriticalAuthSideEffectError("login", error);
     }
+
+    return {
+      success: true,
+      redirectTo: redirectPath,
+    };
   } catch (error) {
     console.error("AUTH ERROR:", error);
 
@@ -71,14 +80,14 @@ export async function loginAction(formData: FormData) {
         ? error.message
         : "Unable to sign in.";
 
-    const nextQuery = fallbackNextPath ? `&next=${encodeURIComponent(fallbackNextPath)}` : "";
-    redirectPath = `/login?error=${encodeURIComponent(message)}${nextQuery}`;
+    return {
+      success: false,
+      error: message,
+    };
   }
-
-  redirect(redirectPath);
 }
 
-export async function signupAction(formData: FormData) {
+export async function signupAction(formData: FormData): Promise<AuthActionResult> {
   const fallbackNextPath = safeNextPath(formData) ?? "/dashboard";
   let redirectPath = fallbackNextPath;
 
@@ -112,6 +121,11 @@ export async function signupAction(formData: FormData) {
     } catch (error) {
       reportNonCriticalAuthSideEffectError("signup", error);
     }
+
+    return {
+      success: true,
+      redirectTo: redirectPath,
+    };
   } catch (error) {
     console.error("AUTH ERROR:", error);
 
@@ -120,11 +134,11 @@ export async function signupAction(formData: FormData) {
         ? error.message
         : "Unable to create account.";
 
-    const nextQuery = fallbackNextPath ? `&next=${encodeURIComponent(fallbackNextPath)}` : "";
-    redirectPath = `/signup?error=${encodeURIComponent(message)}${nextQuery}`;
+    return {
+      success: false,
+      error: message,
+    };
   }
-
-  redirect(redirectPath);
 }
 
 export async function demoLoginAction() {

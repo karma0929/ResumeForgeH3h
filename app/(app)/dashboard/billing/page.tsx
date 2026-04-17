@@ -2,12 +2,11 @@ import { ArrowUpRight, CreditCard, ExternalLink, Sparkles } from "lucide-react";
 import { UsageLimitPrompt } from "@/components/billing/usage-limit-prompt";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
+import { BillingActionButton } from "@/components/billing/billing-action-button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBanner } from "@/components/ui/status-banner";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { startCheckoutAction, openBillingPortalAction } from "@/lib/actions/billing";
 import { getSessionIdentity } from "@/lib/auth";
 import {
   BILLING_PLANS,
@@ -147,19 +146,18 @@ export default async function BillingPage({
               : "Production billing requires valid Stripe API keys, webhook secret, and price IDs. Missing configuration blocks billing actions with explicit errors."}
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <form action={openBillingPortalAction}>
-              <SubmitButton
-                className="w-full"
-                pendingLabel="Opening portal..."
-                variant={canUsePortal ? "outline" : "secondary"}
-              >
-                {canUsePortal
-                  ? "Open billing portal"
-                  : allowDevelopmentMocks
-                    ? "Open local billing view"
-                    : "Portal unavailable"}
-              </SubmitButton>
-            </form>
+            <BillingActionButton
+              className="w-full"
+              mode="portal"
+              pendingLabel="Opening portal..."
+              variant={canUsePortal ? "outline" : "secondary"}
+            >
+              {canUsePortal
+                ? "Open billing portal"
+                : allowDevelopmentMocks
+                  ? "Open local billing view"
+                  : "Portal unavailable"}
+            </BillingActionButton>
             {targetPlan ? (
               <a
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-medium text-slate-900"
@@ -228,21 +226,18 @@ export default async function BillingPage({
                     Current plan
                   </div>
                 ) : requiresPortalDowngrade ? (
-                  <form action={openBillingPortalAction}>
-                    <SubmitButton className="w-full" pendingLabel="Opening portal...">
-                      Downgrade in billing portal
-                    </SubmitButton>
-                  </form>
+                  <BillingActionButton className="w-full" mode="portal" pendingLabel="Opening portal...">
+                    Downgrade in billing portal
+                  </BillingActionButton>
                 ) : (
-                  <form action={startCheckoutAction}>
-                    <input name="plan" type="hidden" value={plan.plan} />
-                    <SubmitButton
-                      className="w-full"
-                      pendingLabel={plan.plan === "FREE" ? "Switching..." : "Starting checkout..."}
-                    >
-                      {plan.cta}
-                    </SubmitButton>
-                  </form>
+                  <BillingActionButton
+                    className="w-full"
+                    mode="checkout"
+                    pendingLabel={plan.plan === "FREE" ? "Switching..." : "Starting checkout..."}
+                    plan={plan.plan}
+                  >
+                    {plan.cta}
+                  </BillingActionButton>
                 )}
               </div>
             </Card>
