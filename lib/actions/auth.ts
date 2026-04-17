@@ -27,10 +27,11 @@ function safeNextPath(formData: FormData) {
 }
 
 export async function loginAction(formData: FormData) {
+  const nextPath = readInternalPath(formData) ?? "/dashboard";
+
   try {
     const email = readEmailField(formData);
     const password = readPasswordField(formData);
-    const nextPath = readInternalPath(formData) ?? "/dashboard";
     const user = await findUserForLogin(email);
 
     if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
@@ -46,24 +47,31 @@ export async function loginAction(formData: FormData) {
 
     logEvent("info", "User logged in.", { userId: user.id });
     trackEvent("auth_login_success", { userId: user.id });
-    redirect(nextPath);
   } catch (error) {
-    const nextPath = safeNextPath(formData);
+    logEvent("error", "Login failed.", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    const fallbackNextPath = safeNextPath(formData);
     const message =
       error instanceof ValidationError || error instanceof AuthenticationError
         ? error.message
         : "Unable to sign in.";
-    const nextQuery = nextPath ? `&next=${encodeURIComponent(nextPath)}` : "";
+    const nextQuery = fallbackNextPath ? `&next=${encodeURIComponent(fallbackNextPath)}` : "";
     redirect(`/login?error=${encodeURIComponent(message)}${nextQuery}`);
   }
+
+  redirect(nextPath);
 }
 
 export async function signupAction(formData: FormData) {
+  const nextPath = readInternalPath(formData) ?? "/dashboard";
+
   try {
     const email = readEmailField(formData);
     const name = readStringField(formData, "name", { required: true, min: 2, max: 80 });
     const password = readPasswordField(formData);
-    const nextPath = readInternalPath(formData) ?? "/dashboard";
+
     const user = await createCredentialUser({
       email,
       name,
@@ -79,16 +87,21 @@ export async function signupAction(formData: FormData) {
 
     logEvent("info", "User signed up.", { userId: user.id });
     trackEvent("auth_signup_success", { userId: user.id });
-    redirect(nextPath);
   } catch (error) {
-    const nextPath = safeNextPath(formData);
+    logEvent("error", "Signup failed.", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    const fallbackNextPath = safeNextPath(formData);
     const message =
       error instanceof ValidationError || error instanceof AuthenticationError
         ? error.message
         : "Unable to create account.";
-    const nextQuery = nextPath ? `&next=${encodeURIComponent(nextPath)}` : "";
+    const nextQuery = fallbackNextPath ? `&next=${encodeURIComponent(fallbackNextPath)}` : "";
     redirect(`/signup?error=${encodeURIComponent(message)}${nextQuery}`);
   }
+
+  redirect(nextPath);
 }
 
 export async function demoLoginAction() {
@@ -102,6 +115,7 @@ export async function demoLoginAction() {
     name: "Aarav Patel",
     role: "ADMIN",
   });
+
   redirect("/dashboard");
 }
 
