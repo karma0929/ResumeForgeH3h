@@ -1,0 +1,237 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  PREMIUM_REVIEW
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  TRIALING
+}
+
+enum ResumeVersionType {
+  ORIGINAL
+  TAILORED
+  REWRITE
+  IMPORTED
+}
+
+enum AIGenerationType {
+  ANALYSIS
+  BULLET_REWRITE
+  TAILORED_RESUME
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum BillingProvider {
+  MOCK
+  STRIPE
+}
+
+enum BillingSessionType {
+  CHECKOUT
+  PORTAL
+}
+
+enum BillingSessionStatus {
+  OPEN
+  COMPLETED
+  EXPIRED
+  FAILED
+}
+
+model User {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  name            String
+  passwordHash    String?
+  headline        String?
+  targetRole      String?
+  location        String?
+  role            UserRole         @default(USER)
+  authProvider    String           @default("credentials")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  subscription    Subscription?
+  resumes         Resume[]
+  jobDescriptions JobDescription[]
+  resumeVersions  ResumeVersion[]
+  aiGenerations   AIGeneration[]
+  payments        Payment[]
+  billingSessions BillingSession[]
+  usageCounter    UsageCounter?
+}
+
+model Subscription {
+  id               String             @id @default(cuid())
+  userId           String             @unique
+  plan             SubscriptionPlan   @default(FREE)
+  status           SubscriptionStatus @default(ACTIVE)
+  provider         BillingProvider    @default(MOCK)
+  priceMonthly     Int                @default(0)
+  stripeCustomerId String?
+  stripePriceId    String?
+  stripeProductId  String?
+  stripeSubscriptionId String?
+  cancelAtPeriodEnd Boolean           @default(false)
+  entitlements     Json?
+  currentPeriodEnd DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments         Payment[]
+  billingSessions  BillingSession[]
+}
+
+model Resume {
+  id             String          @id @default(cuid())
+  userId         String
+  title          String
+  originalText   String
+  parsedSections Json
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions       ResumeVersion[]
+  aiGenerations  AIGeneration[]
+
+  @@index([userId])
+}
+
+model JobDescription {
+  id             String          @id @default(cuid())
+  userId         String
+  company        String
+  role           String
+  location       String?
+  description    String
+  keywords       Json
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions       ResumeVersion[]
+  aiGenerations  AIGeneration[]
+
+  @@index([userId])
+}
+
+model ResumeVersion {
+  id                String            @id @default(cuid())
+  userId            String
+  resumeId          String
+  jobDescriptionId  String?
+  name              String
+  type              ResumeVersionType
+  content           String
+  summary           String?
+  score             Int?
+  comparisonNotes   Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume            Resume            @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  jobDescription    JobDescription?   @relation(fields: [jobDescriptionId], references: [id], onDelete: SetNull)
+  aiGenerations     AIGeneration[]
+
+  @@index([userId])
+  @@index([resumeId])
+  @@index([jobDescriptionId])
+}
+
+model AIGeneration {
+  id               String           @id @default(cuid())
+  userId           String
+  resumeId         String?
+  jobDescriptionId String?
+  resumeVersionId  String?
+  type             AIGenerationType
+  input            Json
+  output           Json
+  createdAt        DateTime         @default(now())
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume           Resume?          @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  jobDescription   JobDescription?  @relation(fields: [jobDescriptionId], references: [id], onDelete: SetNull)
+  resumeVersion    ResumeVersion?   @relation(fields: [resumeVersionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, type, createdAt])
+  @@index([resumeId])
+  @@index([jobDescriptionId])
+  @@index([resumeVersionId])
+}
+
+model Payment {
+  id             String         @id @default(cuid())
+  userId         String
+  subscriptionId String?
+  amount         Int
+  currency       String         @default("USD")
+  status         PaymentStatus
+  provider       BillingProvider @default(MOCK)
+  externalId     String?
+  stripeInvoiceId String?
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([subscriptionId])
+}
+
+model BillingSession {
+  id                 String               @id @default(cuid())
+  userId             String
+  subscriptionId     String?
+  provider           BillingProvider      @default(MOCK)
+  type               BillingSessionType
+  status             BillingSessionStatus @default(OPEN)
+  plan               SubscriptionPlan?
+  externalId         String?              @unique
+  externalCustomerId String?
+  url                String?
+  metadata           Json?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription       Subscription?        @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([subscriptionId])
+}
+
+model UsageCounter {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  analysesUsed         Int      @default(0)
+  bulletRewritesUsed   Int      @default(0)
+  tailoredDraftsUsed   Int      @default(0)
+  lastAnalysisAt       DateTime?
+  lastBulletRewriteAt  DateTime?
+  lastTailoredDraftAt  DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
