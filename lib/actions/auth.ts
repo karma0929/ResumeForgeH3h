@@ -26,10 +26,17 @@ function safeNextPath(formData: FormData) {
   return value;
 }
 
+function reportNonCriticalAuthSideEffectError(action: "login" | "signup", error: unknown) {
+  console.error(`[AUTH ${action.toUpperCase()} SIDE EFFECT ERROR]`, error);
+}
+
 export async function loginAction(formData: FormData) {
-  const nextPath = readInternalPath(formData) ?? "/dashboard";
+  const fallbackNextPath = safeNextPath(formData) ?? "/dashboard";
+  let nextPath = fallbackNextPath;
 
   try {
+    nextPath = readInternalPath(formData) ?? "/dashboard";
+
     const email = readEmailField(formData);
     const password = readPasswordField(formData);
     const user = await findUserForLogin(email);
@@ -45,18 +52,29 @@ export async function loginAction(formData: FormData) {
       role: user.role,
     });
 
-    logEvent("info", "User logged in.", { userId: user.id });
-    trackEvent("auth_login_success", { userId: user.id });
-  } catch (error) {
-    logEvent("error", "Login failed.", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    try {
+      logEvent("info", "User logged in.", { userId: user.id });
+    } catch (error) {
+      reportNonCriticalAuthSideEffectError("login", error);
+    }
 
-    const fallbackNextPath = safeNextPath(formData);
+    try {
+      trackEvent("auth_login_success", { userId: user.id });
+    } catch (error) {
+      reportNonCriticalAuthSideEffectError("login", error);
+    }
+  } catch (error) {
+    console.error("LOGIN FAILED RAW ERROR:", error);
+    console.error(
+      "LOGIN FAILED MESSAGE:",
+      error instanceof Error ? error.message : String(error),
+    );
+
     const message =
       error instanceof ValidationError || error instanceof AuthenticationError
         ? error.message
         : "Unable to sign in.";
+
     const nextQuery = fallbackNextPath ? `&next=${encodeURIComponent(fallbackNextPath)}` : "";
     redirect(`/login?error=${encodeURIComponent(message)}${nextQuery}`);
   }
@@ -65,9 +83,12 @@ export async function loginAction(formData: FormData) {
 }
 
 export async function signupAction(formData: FormData) {
-  const nextPath = readInternalPath(formData) ?? "/dashboard";
+  const fallbackNextPath = safeNextPath(formData) ?? "/dashboard";
+  let nextPath = fallbackNextPath;
 
   try {
+    nextPath = readInternalPath(formData) ?? "/dashboard";
+
     const email = readEmailField(formData);
     const name = readStringField(formData, "name", { required: true, min: 2, max: 80 });
     const password = readPasswordField(formData);
@@ -85,18 +106,29 @@ export async function signupAction(formData: FormData) {
       role: user.role,
     });
 
-    logEvent("info", "User signed up.", { userId: user.id });
-    trackEvent("auth_signup_success", { userId: user.id });
-  } catch (error) {
-    logEvent("error", "Signup failed.", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    try {
+      logEvent("info", "User signed up.", { userId: user.id });
+    } catch (error) {
+      reportNonCriticalAuthSideEffectError("signup", error);
+    }
 
-    const fallbackNextPath = safeNextPath(formData);
+    try {
+      trackEvent("auth_signup_success", { userId: user.id });
+    } catch (error) {
+      reportNonCriticalAuthSideEffectError("signup", error);
+    }
+  } catch (error) {
+    console.error("SIGNUP FAILED RAW ERROR:", error);
+    console.error(
+      "SIGNUP FAILED MESSAGE:",
+      error instanceof Error ? error.message : String(error),
+    );
+
     const message =
       error instanceof ValidationError || error instanceof AuthenticationError
         ? error.message
         : "Unable to create account.";
+
     const nextQuery = fallbackNextPath ? `&next=${encodeURIComponent(fallbackNextPath)}` : "";
     redirect(`/signup?error=${encodeURIComponent(message)}${nextQuery}`);
   }
