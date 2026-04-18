@@ -51,70 +51,235 @@ function readCsv(formData: FormData, key: string, max = 2000) {
   return splitCsv(readStringField(formData, key, { max }));
 }
 
+function readValueWithFallback(
+  formData: FormData,
+  key: string,
+  options: { max?: number; min?: number; required?: boolean },
+  fallback: string,
+) {
+  if (!formData.has(key)) {
+    return fallback;
+  }
+
+  return readStringField(formData, key, {
+    max: options.max,
+    min: options.min,
+    required: options.required,
+  });
+}
+
+function parseWizardStep(value: string) {
+  const parsed = Number.parseInt(value, 10);
+
+  if (Number.isNaN(parsed) || parsed < 1 || parsed > 7) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function buildUploadRedirectPath(input: {
+  basePath: string;
+  step: number | null;
+  query: Record<string, string>;
+}) {
+  const params = new URLSearchParams(input.query);
+
+  if (input.step) {
+    params.set("step", String(input.step));
+  }
+
+  return `${input.basePath}?${params.toString()}`;
+}
+
 export async function saveResumeAction(formData: FormData) {
   try {
     const snapshot = await requireSnapshot();
+    const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/upload" });
+    const returnTo =
+      returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/dashboard/upload";
+    const currentStep = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "" }));
+    const nextStep = parseWizardStep(readStringField(formData, "nextStep", { max: 10, fallback: "" }));
     const intent = readStringField(formData, "intent", { max: 20, fallback: "save" });
     const isDraft = intent === "draft";
     const intakeMode = assertEnumValue(
-      readStringField(formData, "intakeMode", { max: 20, fallback: "quick" }),
+      readValueWithFallback(formData, "intakeMode", { max: 20 }, snapshot.resumes[0]?.intakeMode ?? "quick"),
       ["quick", "guided"] as const,
       "intakeMode",
     ) as ResumeIntakeMode;
     const resumeId = readStringField(formData, "resumeId", { max: 120 });
-    const titleInput = readStringField(formData, "title", { max: 120 });
+    const existingResume = resumeId
+      ? snapshot.resumes.find((resume) => resume.id === resumeId) ?? snapshot.resumes[0]
+      : snapshot.resumes[0];
+    const existingProfile = existingResume?.profileData;
+    const titleInput = readValueWithFallback(formData, "title", { max: 120 }, existingResume?.title ?? "");
     const title = titleInput || (intakeMode === "guided" ? "Guided Resume Draft" : "Resume Draft");
 
     if (!isDraft && title.length < 3) {
       throw new ValidationError("title must be at least 3 characters.");
     }
 
-    const quickResumeText = readStringField(formData, "quickResumeText", { max: 15000 });
+    const quickResumeText = readValueWithFallback(
+      formData,
+      "quickResumeText",
+      { max: 15000 },
+      existingResume?.originalText ?? "",
+    );
 
     if (!isDraft && intakeMode === "quick" && quickResumeText.length < 40) {
       throw new ValidationError("quickResumeText must be at least 40 characters.");
     }
 
-    const careerLevel = readStringField(formData, "careerLevel", { max: 40 }) as CareerLevel | "";
+    const careerLevel = readValueWithFallback(
+      formData,
+      "careerLevel",
+      { max: 40 },
+      existingProfile?.basicProfile.careerLevel ?? "",
+    ) as CareerLevel | "";
     const experienceEntries = [1, 2].map((index) => ({
-      company: readStringField(formData, `exp${index}_company`, { max: 120 }),
-      title: readStringField(formData, `exp${index}_title`, { max: 120 }),
-      location: readStringField(formData, `exp${index}_location`, { max: 120 }),
-      dates: readStringField(formData, `exp${index}_dates`, { max: 80 }),
-      responsibilities: readStringField(formData, `exp${index}_responsibilities`, { max: 800 }),
-      achievements: readStringField(formData, `exp${index}_achievements`, { max: 800 }),
-      quantifiedImpact: readStringField(formData, `exp${index}_quantifiedImpact`, { max: 500 }),
+      company: readValueWithFallback(
+        formData,
+        `exp${index}_company`,
+        { max: 120 },
+        existingProfile?.workExperiences[index - 1]?.company ?? "",
+      ),
+      title: readValueWithFallback(
+        formData,
+        `exp${index}_title`,
+        { max: 120 },
+        existingProfile?.workExperiences[index - 1]?.title ?? "",
+      ),
+      location: readValueWithFallback(
+        formData,
+        `exp${index}_location`,
+        { max: 120 },
+        existingProfile?.workExperiences[index - 1]?.location ?? "",
+      ),
+      dates: readValueWithFallback(
+        formData,
+        `exp${index}_dates`,
+        { max: 80 },
+        existingProfile?.workExperiences[index - 1]?.dates ?? "",
+      ),
+      responsibilities: readValueWithFallback(
+        formData,
+        `exp${index}_responsibilities`,
+        { max: 800 },
+        existingProfile?.workExperiences[index - 1]?.responsibilities ?? "",
+      ),
+      achievements: readValueWithFallback(
+        formData,
+        `exp${index}_achievements`,
+        { max: 800 },
+        existingProfile?.workExperiences[index - 1]?.achievements ?? "",
+      ),
+      quantifiedImpact: readValueWithFallback(
+        formData,
+        `exp${index}_quantifiedImpact`,
+        { max: 500 },
+        existingProfile?.workExperiences[index - 1]?.quantifiedImpact ?? "",
+      ),
     }));
 
     const profileData: ResumeProfileData = {
       mode: intakeMode,
       basicProfile: {
-        fullName: readStringField(formData, "fullName", { max: 120 }),
-        currentTitle: readStringField(formData, "currentTitle", { max: 120 }),
-        targetTitle: readStringField(formData, "targetTitle", { max: 120 }),
-        location: readStringField(formData, "profileLocation", { max: 120 }),
-        workAuthorization: readStringField(formData, "workAuthorization", { max: 120 }),
-        yearsExperience: readStringField(formData, "yearsExperience", { max: 40 }),
+        fullName: readValueWithFallback(formData, "fullName", { max: 120 }, existingProfile?.basicProfile.fullName ?? ""),
+        currentTitle: readValueWithFallback(
+          formData,
+          "currentTitle",
+          { max: 120 },
+          existingProfile?.basicProfile.currentTitle ?? "",
+        ),
+        targetTitle: readValueWithFallback(
+          formData,
+          "targetTitle",
+          { max: 120 },
+          existingProfile?.basicProfile.targetTitle ?? "",
+        ),
+        location: readValueWithFallback(
+          formData,
+          "profileLocation",
+          { max: 120 },
+          existingProfile?.basicProfile.location ?? "",
+        ),
+        workAuthorization: readValueWithFallback(
+          formData,
+          "workAuthorization",
+          { max: 120 },
+          existingProfile?.basicProfile.workAuthorization ?? "",
+        ),
+        yearsExperience: readValueWithFallback(
+          formData,
+          "yearsExperience",
+          { max: 40 },
+          existingProfile?.basicProfile.yearsExperience ?? "",
+        ),
         careerLevel,
       },
-      professionalSummary: readStringField(formData, "professionalSummary", { max: 2000 }),
-      skills: readCsv(formData, "skillsCsv", 3000),
+      professionalSummary: readValueWithFallback(
+        formData,
+        "professionalSummary",
+        { max: 2000 },
+        existingProfile?.professionalSummary ?? "",
+      ),
+      skills: formData.has("skillsCsv")
+        ? readCsv(formData, "skillsCsv", 3000)
+        : (existingProfile?.skills ?? []),
       workExperiences: experienceEntries.filter((entry) => Object.values(entry).some(Boolean)),
-      education: readLines(formData, "educationLines", 3000),
-      projects: readLines(formData, "projectLines", 3000),
-      certifications: readLines(formData, "certificationLines", 2000),
-      awards: readLines(formData, "awardLines", 2000),
+      education: formData.has("educationLines")
+        ? readLines(formData, "educationLines", 3000)
+        : (existingProfile?.education ?? []),
+      projects: formData.has("projectLines")
+        ? readLines(formData, "projectLines", 3000)
+        : (existingProfile?.projects ?? []),
+      certifications: formData.has("certificationLines")
+        ? readLines(formData, "certificationLines", 2000)
+        : (existingProfile?.certifications ?? []),
+      awards: formData.has("awardLines")
+        ? readLines(formData, "awardLines", 2000)
+        : (existingProfile?.awards ?? []),
       links: {
-        linkedIn: readStringField(formData, "linkedInUrl", { max: 240 }),
-        github: readStringField(formData, "githubUrl", { max: 240 }),
-        portfolio: readStringField(formData, "portfolioUrl", { max: 240 }),
+        linkedIn: readValueWithFallback(
+          formData,
+          "linkedInUrl",
+          { max: 240 },
+          existingProfile?.links.linkedIn ?? "",
+        ),
+        github: readValueWithFallback(
+          formData,
+          "githubUrl",
+          { max: 240 },
+          existingProfile?.links.github ?? "",
+        ),
+        portfolio: readValueWithFallback(
+          formData,
+          "portfolioUrl",
+          { max: 240 },
+          existingProfile?.links.portfolio ?? "",
+        ),
       },
       preferences: {
-        resumeStyle: readStringField(formData, "resumeStyle", { max: 120 }),
-        keywordEmphasis: readStringField(formData, "keywordEmphasis", { max: 400 }),
-        industryPreference: readStringField(formData, "industryPreference", { max: 240 }),
+        resumeStyle: readValueWithFallback(
+          formData,
+          "resumeStyle",
+          { max: 120 },
+          existingProfile?.preferences.resumeStyle ?? "",
+        ),
+        keywordEmphasis: readValueWithFallback(
+          formData,
+          "keywordEmphasis",
+          { max: 400 },
+          existingProfile?.preferences.keywordEmphasis ?? "",
+        ),
+        industryPreference: readValueWithFallback(
+          formData,
+          "industryPreference",
+          { max: 240 },
+          existingProfile?.preferences.industryPreference ?? "",
+        ),
       },
-      notes: readStringField(formData, "resumeNotes", { max: 2000 }),
+      notes: readValueWithFallback(formData, "resumeNotes", { max: 2000 }, existingProfile?.notes ?? ""),
     };
 
     await createResumeRecord({
@@ -129,23 +294,69 @@ export async function saveResumeAction(formData: FormData) {
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/upload");
-    redirect(`/dashboard/upload?resumeSaved=1${isDraft ? "&draft=1" : ""}`);
+    redirect(
+      buildUploadRedirectPath({
+        basePath: returnTo,
+        step: nextStep ?? currentStep,
+        query: {
+          resumeSaved: "1",
+          ...(isDraft ? { draft: "1" } : {}),
+        },
+      }),
+    );
   } catch (error) {
     const message = error instanceof ValidationError ? error.message : "Unable to save resume.";
-    redirect(`/dashboard/upload?error=${encodeURIComponent(message)}`);
+    const step = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "" }));
+    redirect(
+      buildUploadRedirectPath({
+        basePath: "/dashboard/upload",
+        step,
+        query: { error: message },
+      }),
+    );
   }
 }
 
 export async function saveJobDescriptionAction(formData: FormData) {
   try {
     const snapshot = await requireSnapshot();
+    const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/upload" });
+    const returnTo =
+      returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/dashboard/upload";
+    const currentStep = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "" }));
+    const nextStep = parseWizardStep(readStringField(formData, "nextStep", { max: 10, fallback: "" }));
     const intent = readStringField(formData, "intent", { max: 20, fallback: "save" });
     const isDraft = intent === "draft";
     const jobDescriptionId = readStringField(formData, "jobDescriptionId", { max: 120 });
-    const company = readStringField(formData, "company", { max: 120 });
-    const role = readStringField(formData, "role", { max: 120 });
-    const location = readStringField(formData, "location", { max: 120 });
-    const description = readStringField(formData, "description", { max: 20000 });
+    const existingJobDescription = jobDescriptionId
+      ? snapshot.jobDescriptions.find((jobDescription) => jobDescription.id === jobDescriptionId) ??
+        snapshot.jobDescriptions[0]
+      : snapshot.jobDescriptions[0];
+    const existingBrief = existingJobDescription?.briefData;
+    const company = readValueWithFallback(
+      formData,
+      "company",
+      { max: 120 },
+      existingJobDescription?.company ?? "",
+    );
+    const role = readValueWithFallback(
+      formData,
+      "role",
+      { max: 120 },
+      existingJobDescription?.role ?? "",
+    );
+    const location = readValueWithFallback(
+      formData,
+      "location",
+      { max: 120 },
+      existingJobDescription?.location ?? "",
+    );
+    const description = readValueWithFallback(
+      formData,
+      "description",
+      { max: 20000 },
+      existingJobDescription?.description ?? "",
+    );
 
     if (!isDraft && company.length < 2) {
       throw new ValidationError("company must be at least 2 characters.");
@@ -159,35 +370,83 @@ export async function saveJobDescriptionAction(formData: FormData) {
       throw new ValidationError("description must be at least 80 characters.");
     }
 
-    const priorityValues = formData
-      .getAll("hiringPriorities")
-      .map((value) => (typeof value === "string" ? value : ""))
-      .filter(Boolean);
-    const hiringPriorities = priorityValues.filter((value): value is TargetRoleBriefData["hiringPriorities"][number] =>
-      [
-        "technical_depth",
-        "communication",
-        "leadership",
-        "execution",
-        "research",
-        "product_thinking",
-      ].includes(value),
-    );
+    const allowedPriorities: TargetRoleBriefData["hiringPriorities"] = [
+      "technical_depth",
+      "communication",
+      "leadership",
+      "execution",
+      "research",
+      "product_thinking",
+    ];
+    const hiringPriorities = formData.has("hiringPriorities")
+      ? formData
+          .getAll("hiringPriorities")
+          .map((value) => (typeof value === "string" ? value : ""))
+          .filter((value): value is TargetRoleBriefData["hiringPriorities"][number] =>
+            allowedPriorities.includes(value as TargetRoleBriefData["hiringPriorities"][number]),
+          )
+      : (existingBrief?.hiringPriorities ?? []);
 
     const briefData: TargetRoleBriefData = {
-      seniorityLevel: readStringField(formData, "seniorityLevel", { max: 120 }),
-      employmentType: readStringField(formData, "employmentType", { max: 120 }),
-      workMode: readStringField(formData, "workMode", { max: 120 }),
-      industryDomain: readStringField(formData, "industryDomain", { max: 240 }),
-      salaryRange: readStringField(formData, "salaryRange", { max: 120 }),
-      topRequiredSkills: readCsv(formData, "topRequiredSkills", 2500),
-      preferredSkills: readCsv(formData, "preferredSkills", 2500),
-      emphasizeKeywords: readCsv(formData, "emphasizeKeywords", 2500),
-      responsibilitiesSummary: readStringField(formData, "responsibilitiesSummary", { max: 2000 }),
+      seniorityLevel: readValueWithFallback(
+        formData,
+        "seniorityLevel",
+        { max: 120 },
+        existingBrief?.seniorityLevel ?? "",
+      ),
+      employmentType: readValueWithFallback(
+        formData,
+        "employmentType",
+        { max: 120 },
+        existingBrief?.employmentType ?? "",
+      ),
+      workMode: readValueWithFallback(formData, "workMode", { max: 120 }, existingBrief?.workMode ?? ""),
+      industryDomain: readValueWithFallback(
+        formData,
+        "industryDomain",
+        { max: 240 },
+        existingBrief?.industryDomain ?? "",
+      ),
+      salaryRange: readValueWithFallback(
+        formData,
+        "salaryRange",
+        { max: 120 },
+        existingBrief?.salaryRange ?? "",
+      ),
+      topRequiredSkills: formData.has("topRequiredSkills")
+        ? readCsv(formData, "topRequiredSkills", 2500)
+        : (existingBrief?.topRequiredSkills ?? []),
+      preferredSkills: formData.has("preferredSkills")
+        ? readCsv(formData, "preferredSkills", 2500)
+        : (existingBrief?.preferredSkills ?? []),
+      emphasizeKeywords: formData.has("emphasizeKeywords")
+        ? readCsv(formData, "emphasizeKeywords", 2500)
+        : (existingBrief?.emphasizeKeywords ?? []),
+      responsibilitiesSummary: readValueWithFallback(
+        formData,
+        "responsibilitiesSummary",
+        { max: 2000 },
+        existingBrief?.responsibilitiesSummary ?? "",
+      ),
       hiringPriorities,
-      atsIntensity: readStringField(formData, "atsIntensity", { max: 80 }),
-      technicalIntensity: readStringField(formData, "technicalIntensity", { max: 80 }),
-      recruiterNotes: readStringField(formData, "recruiterNotes", { max: 2000 }),
+      atsIntensity: readValueWithFallback(
+        formData,
+        "atsIntensity",
+        { max: 80 },
+        existingBrief?.atsIntensity ?? "",
+      ),
+      technicalIntensity: readValueWithFallback(
+        formData,
+        "technicalIntensity",
+        { max: 80 },
+        existingBrief?.technicalIntensity ?? "",
+      ),
+      recruiterNotes: readValueWithFallback(
+        formData,
+        "recruiterNotes",
+        { max: 2000 },
+        existingBrief?.recruiterNotes ?? "",
+      ),
     };
 
     await createJobDescriptionRecord({
@@ -202,11 +461,27 @@ export async function saveJobDescriptionAction(formData: FormData) {
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/upload");
-    redirect(`/dashboard/upload?jobDescriptionSaved=1${isDraft ? "&draft=1" : ""}`);
+    redirect(
+      buildUploadRedirectPath({
+        basePath: returnTo,
+        step: nextStep ?? currentStep,
+        query: {
+          jobDescriptionSaved: "1",
+          ...(isDraft ? { draft: "1" } : {}),
+        },
+      }),
+    );
   } catch (error) {
     const message =
       error instanceof ValidationError ? error.message : "Unable to save job description.";
-    redirect(`/dashboard/upload?error=${encodeURIComponent(message)}`);
+    const step = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "" }));
+    redirect(
+      buildUploadRedirectPath({
+        basePath: "/dashboard/upload",
+        step,
+        query: { error: message },
+      }),
+    );
   }
 }
 

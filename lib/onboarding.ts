@@ -17,7 +17,7 @@ export interface OnboardingProgress {
 }
 
 export interface WorkflowStep {
-  id: "resume" | "job-description" | "analysis" | "tailored" | "versions" | "export";
+  id: string;
   title: string;
   description: string;
   href: string;
@@ -40,60 +40,73 @@ export interface WorkflowAction {
 }
 
 export function getWorkflowState(snapshot: AppSnapshot): WorkflowState {
-  const hasResumeProfile = snapshot.resumes.some(
-    (resume) => resume.profileCompleteness >= 45 || resume.originalText.length >= 120,
+  const resume = snapshot.resumes[0];
+  const jobDescription = snapshot.jobDescriptions[0];
+  const hasTargetRole = Boolean(
+    jobDescription &&
+      (jobDescription.briefCompleteness >= 35 || jobDescription.description.length >= 80),
   );
-  const hasTargetRole = snapshot.jobDescriptions.some(
-    (jobDescription) => jobDescription.briefCompleteness >= 40 || jobDescription.description.length >= 120,
-  );
+  const hasResumeBaseline = Boolean(resume && resume.originalText.length >= 40);
+  const hasCoreProfile = Boolean(resume && resume.profileCompleteness >= 45);
+  const hasEnhancements = Boolean(resume && resume.profileCompleteness >= 70);
+  const hasDraft = hasTargetRole && hasResumeBaseline;
   const hasAnalysis = snapshot.aiGenerations.some((generation) => generation.type === "ANALYSIS");
-  const hasTailoredVersion = snapshot.resumeVersions.some((version) => version.type === "TAILORED");
-  const hasVersionComparisonData = snapshot.resumeVersions.length >= 2;
-  const hasExportCapability =
-    snapshot.resumeVersions.length > 0 && (snapshot.subscription?.plan ?? "FREE") !== "FREE";
+  const hasTailoredVersion = snapshot.resumeVersions.some(
+    (version) =>
+      version.type === "TAILORED" &&
+      (!resume || version.resumeId === resume.id) &&
+      (!jobDescription || version.jobDescriptionId === jobDescription.id),
+  );
 
   const steps: WorkflowStep[] = [
     {
-      id: "resume",
-      title: "Build resume profile",
-      description: "Create or refine your base resume profile.",
-      href: "/dashboard/upload",
-      complete: hasResumeProfile,
-    },
-    {
-      id: "job-description",
-      title: "Add target role",
-      description: "Create a target role brief from a real job posting.",
+      id: "target-role",
+      title: "Define target role",
+      description: "Capture target company, role context, and hiring signals.",
       href: "/dashboard/upload",
       complete: hasTargetRole,
     },
     {
+      id: "resume-baseline",
+      title: "Add resume baseline",
+      description: "Paste your current resume or start from guided mode.",
+      href: "/dashboard/upload",
+      complete: hasResumeBaseline,
+    },
+    {
+      id: "core-profile",
+      title: "Build core profile",
+      description: "Add summary, skills, experience, education, and projects.",
+      href: "/dashboard/upload",
+      complete: hasCoreProfile,
+    },
+    {
+      id: "enhancements",
+      title: "Add enhancements",
+      description: "Optional details that improve ATS and generation quality.",
+      href: "/dashboard/upload",
+      complete: hasEnhancements,
+    },
+    {
+      id: "draft",
+      title: "Generate baseline draft",
+      description: "Review profile quality and unresolved information gaps.",
+      href: "/dashboard/upload",
+      complete: hasDraft,
+    },
+    {
       id: "analysis",
       title: "Run ATS analysis",
-      description: "Score fit, clarity, impact, and missing keywords.",
+      description: "Score fit, clarity, impact, and missing role signals.",
       href: "/dashboard/analysis",
       complete: hasAnalysis,
     },
     {
       id: "tailored",
-      title: "Generate tailored resume",
-      description: "Produce a role-specific version from your analysis signals.",
+      title: "Generate tailored version",
+      description: "Create a role-specific submission draft.",
       href: "/dashboard/tailoring",
       complete: hasTailoredVersion,
-    },
-    {
-      id: "versions",
-      title: "Compare versions",
-      description: "Review differences between baseline and tailored outputs.",
-      href: "/dashboard/versions",
-      complete: hasVersionComparisonData,
-    },
-    {
-      id: "export",
-      title: "Export for submission",
-      description: "Export the best version and submit with confidence.",
-      href: "/dashboard/versions",
-      complete: hasExportCapability,
     },
   ];
 
@@ -124,6 +137,56 @@ export function getWorkflowAction(snapshot: AppSnapshot): WorkflowAction {
     };
   }
 
+  if (workflow.nextStep.id === "target-role") {
+    return {
+      title: "Start with your target role",
+      description:
+        "Define the role first so every resume suggestion is aligned to an actual opportunity.",
+      href: "/dashboard/upload?step=1",
+      cta: "Define target role",
+    };
+  }
+
+  if (workflow.nextStep.id === "resume-baseline") {
+    return {
+      title: "Add your current resume baseline",
+      description:
+        "Paste your existing resume or begin guided mode to build one progressively.",
+      href: "/dashboard/upload?step=2",
+      cta: "Add resume baseline",
+    };
+  }
+
+  if (workflow.nextStep.id === "core-profile") {
+    return {
+      title: "Build your core profile",
+      description:
+        "Add summary, skills, and core experience so output quality improves before analysis.",
+      href: "/dashboard/upload?step=3",
+      cta: "Complete core profile",
+    };
+  }
+
+  if (workflow.nextStep.id === "enhancements") {
+    return {
+      title: "Add optional enhancements",
+      description:
+        "Include quantified impact and optional signals to improve ATS and recruiter confidence.",
+      href: "/dashboard/upload?step=4",
+      cta: "Add enhancements",
+    };
+  }
+
+  if (workflow.nextStep.id === "draft") {
+    return {
+      title: "Review draft readiness",
+      description:
+        "Check profile gaps and confirm readiness before running ATS analysis.",
+      href: "/dashboard/upload?step=5",
+      cta: "Review readiness",
+    };
+  }
+
   if (workflow.nextStep.id === "analysis" && resume?.id && jobDescription?.id) {
     return {
       title: "Run your first ATS fit scan",
@@ -141,26 +204,6 @@ export function getWorkflowAction(snapshot: AppSnapshot): WorkflowAction {
         "Turn your score insights into a role-specific version and save it for side-by-side comparison.",
       href: `/dashboard/tailoring?resumeId=${resume.id}&jobDescriptionId=${jobDescription.id}`,
       cta: "Open tailoring",
-    };
-  }
-
-  if (workflow.nextStep.id === "versions") {
-    return {
-      title: "Compare baseline vs tailored",
-      description:
-        "Review differences in positioning, keyword coverage, and impact language before export.",
-      href: "/dashboard/versions",
-      cta: "Compare versions",
-    };
-  }
-
-  if (workflow.nextStep.id === "export") {
-    return {
-      title: "Export your strongest version",
-      description:
-        "You are one step away from submission. Export the selected resume and apply.",
-      href: "/dashboard/versions",
-      cta: "Open export",
     };
   }
 
