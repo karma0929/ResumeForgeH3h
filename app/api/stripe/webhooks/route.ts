@@ -3,18 +3,20 @@ import { NextResponse } from "next/server";
 import { allowDevelopmentMocks, requireStripeWebhookSecret } from "@/lib/env";
 import { ConfigurationError } from "@/lib/errors";
 import { logEvent } from "@/lib/logger";
-import { getStripeClient } from "@/lib/billing/stripe";
+import { getStripeClient, isStripeConfigured, validateStripeConfiguration } from "@/lib/billing/stripe";
 import { handleStripeEvent } from "@/lib/billing/service";
 
 export async function POST(request: Request) {
   let stripe = null;
   let webhookSecret = null;
+  const stripeConfigured = isStripeConfigured();
 
   try {
+    validateStripeConfiguration({ requireWebhookSecret: true });
     stripe = getStripeClient();
     webhookSecret = requireStripeWebhookSecret();
   } catch (error) {
-    if (allowDevelopmentMocks) {
+    if (allowDevelopmentMocks && !stripeConfigured) {
       return NextResponse.json({
         received: true,
         mode: "mock",
@@ -42,6 +44,10 @@ export async function POST(request: Request) {
   try {
     const event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
     await handleStripeEvent(event);
+    logEvent("info", "Stripe webhook processed successfully.", {
+      eventType: event.type,
+      eventId: event.id,
+    });
     return NextResponse.json({ received: true });
   } catch (error) {
     if (error instanceof ConfigurationError) {

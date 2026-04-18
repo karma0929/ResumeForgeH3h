@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSessionIdentity } from "@/lib/auth";
 import { trackEvent } from "@/lib/analytics";
-import { getAppBaseUrl, isProductionEnvironment } from "@/lib/env";
+import { getAppBaseUrl } from "@/lib/env";
 import { createCheckoutFlow, createPortalFlow } from "@/lib/billing/service";
 import { getAppSnapshot } from "@/lib/data";
 import { AuthenticationError } from "@/lib/errors";
@@ -19,41 +19,6 @@ async function requireSnapshot() {
 
   return getAppSnapshot(identity);
 }
-
-function validateStripeConfigConsistency(): string | null {
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim() ?? "";
-  const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim() ?? "";
-  const proPriceId = process.env.STRIPE_PRICE_PRO_MONTHLY?.trim() ?? "";
-  const premiumPriceId = process.env.STRIPE_PRICE_PREMIUM_REVIEW_MONTHLY?.trim() ?? "";
-
-  if (!stripeSecretKey) {
-    return null;
-  }
-
-  const usesTestSecret = stripeSecretKey.startsWith("sk_test_");
-  const usesLiveSecret = stripeSecretKey.startsWith("sk_live_");
-
-  if (!usesTestSecret && !usesLiveSecret) {
-    return "STRIPE_SECRET_KEY must start with sk_test_ or sk_live_.";
-  }
-
-  if (!isProductionEnvironment && usesLiveSecret) {
-    return "Use Stripe test credentials in local/preview environments.";
-  }
-
-  if (usesTestSecret) {
-    if (!stripeWebhookSecret.startsWith("whsec_")) {
-      return "STRIPE_WEBHOOK_SECRET is invalid for Stripe test mode.";
-    }
-
-    if (!proPriceId.startsWith("price_") || !premiumPriceId.startsWith("price_")) {
-      return "Stripe test mode requires STRIPE_PRICE_* values from test products.";
-    }
-  }
-
-  return null;
-}
-
 export type BillingActionResult =
   | { success: true; redirectTo: string }
   | { success: false; error: string };
@@ -62,12 +27,6 @@ export async function startCheckoutAction(formData: FormData): Promise<BillingAc
   let redirectUrl = "/dashboard/billing";
 
   try {
-    const stripeConfigError = validateStripeConfigConsistency();
-
-    if (stripeConfigError) {
-      throw new Error(stripeConfigError);
-    }
-
     const snapshot = await requireSnapshot();
     const plan = assertEnumValue(
       readStringField(formData, "plan", { required: true, max: 32 }),
@@ -116,12 +75,6 @@ export async function openBillingPortalAction(): Promise<BillingActionResult> {
   let redirectUrl = "/dashboard/billing";
 
   try {
-    const stripeConfigError = validateStripeConfigConsistency();
-
-    if (stripeConfigError) {
-      throw new Error(stripeConfigError);
-    }
-
     const snapshot = await requireSnapshot();
     const returnUrl = `${getAppBaseUrl()}/dashboard/billing`;
 

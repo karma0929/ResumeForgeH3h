@@ -5,7 +5,12 @@ import { ExternalServiceError } from "@/lib/errors";
 import { logEvent } from "@/lib/logger";
 import { prisma, isDatabaseConfigured } from "@/lib/prisma";
 import { getPlanDefinition } from "@/lib/billing/plans";
-import { getStripeClient, getStripePriceId, isStripeConfigured } from "@/lib/billing/stripe";
+import {
+  getStripeClient,
+  getStripePriceId,
+  validateStripeConfiguration,
+  type StripeKeyMode,
+} from "@/lib/billing/stripe";
 import type { AppSnapshot, SubscriptionPlan } from "@/lib/types";
 
 interface CheckoutFlowInput {
@@ -58,7 +63,7 @@ async function updateSubscriptionRecord(input: {
     return null;
   }
 
-  return prisma.subscription.upsert({
+  const result = await prisma.subscription.upsert({
     where: { userId: input.userId },
     update: {
       plan: input.plan,
@@ -88,6 +93,15 @@ async function updateSubscriptionRecord(input: {
       entitlements: entitlementsForPlan(input.plan) as unknown as Prisma.InputJsonValue,
     },
   });
+
+  logEvent("info", "Subscription record updated.", {
+    userId: input.userId,
+    plan: input.plan,
+    provider: input.provider,
+    status: input.status ?? "ACTIVE",
+  });
+
+  return result;
 }
 
 async function createPaymentRecord(input: {
@@ -227,10 +241,30 @@ async function runMockCheckout(input: CheckoutFlowInput): Promise<CheckoutFlowRe
     },
   });
 
+  logEvent("warn", "Checkout used local mock fallback.", {
+    userId: input.snapshot.user.id,
+    plan: input.plan,
+  });
+
   return {
     mode: "mock",
     redirectUrl: withQueryValue(withQueryValue(input.successUrl, "checkout", "mock"), "plan", input.plan),
   };
+}
+
+async function assertStripePriceMatchesKeyMode(
+  stripe: Stripe,
+  stripePriceId: string,
+  keyMode: StripeKeyMode,
+) {
+  const price = await stripe.prices.retrieve(stripePriceId);
+  const expectedLiveMode = keyMode === "live";
+
+  if (price.livemode !== expectedLiveMode) {
+    throw new ExternalServiceError(
+      `Stripe key mode (${keyMode}) does not match price mode for ${stripePriceId}.`,
+    );
+  }
 }
 
 export async function createCheckoutFlow(input: CheckoutFlowInput): Promise<CheckoutFlowResult> {
@@ -244,12 +278,32 @@ export async function createCheckoutFlow(input: CheckoutFlowInput): Promise<Chec
     return runMockCheckout(input);
   }
 
-  const stripe = getStripeClient();
-  const stripePriceId = getStripePriceId(input.plan === "PREMIUM_REVIEW" ? "PREMIUM_REVIEW" : "PRO");
+  const config = validateStripeConfiguration({ requirePrices: true });
 
-  if (!stripe || !isStripeConfigured() || !stripePriceId) {
+  if (!config.configured) {
     return runMockCheckout(input);
   }
+
+  const stripe = getStripeClient();
+
+  if (!stripe) {
+    throw new ExternalServiceError("Stripe client could not be initialized.");
+  }
+
+  const stripePriceId = getStripePriceId(input.plan === "PREMIUM_REVIEW" ? "PREMIUM_REVIEW" : "PRO");
+
+  if (!stripePriceId) {
+    throw new ExternalServiceError("Stripe price ID is missing for the selected plan.");
+  }
+
+  await assertStripePriceMatchesKeyMode(stripe, stripePriceId, config.mode as StripeKeyMode);
+
+  logEvent("info", "Creating Stripe checkout session.", {
+    userId: input.snapshot.user.id,
+    plan: input.plan,
+    stripePriceId,
+    mode: config.mode,
+  });
 
   const { customerId } = await ensureStripeCustomer(stripe, input.snapshot);
 
@@ -274,6 +328,13 @@ export async function createCheckoutFlow(input: CheckoutFlowInput): Promise<Chec
         plan: input.plan,
       },
     },
+  });
+
+  logEvent("info", "Stripe checkout session created.", {
+    userId: input.snapshot.user.id,
+    sessionId: session.id,
+    customerId,
+    plan: input.plan,
   });
 
   await createBillingSessionRecord({
@@ -312,13 +373,9 @@ export async function createCheckoutFlow(input: CheckoutFlowInput): Promise<Chec
 }
 
 export async function createPortalFlow(input: PortalFlowInput): Promise<CheckoutFlowResult> {
-  const stripe = getStripeClient();
+  const config = validateStripeConfiguration();
 
-  if (
-    !stripe ||
-    !isStripeConfigured() ||
-    !input.snapshot.subscription?.stripeCustomerId
-  ) {
+  if (!config.configured) {
     if (!allowDevelopmentMocks) {
       throw new ExternalServiceError("Stripe billing portal is not configured for this environment.");
     }
@@ -336,15 +393,41 @@ export async function createPortalFlow(input: PortalFlowInput): Promise<Checkout
       },
     });
 
+    logEvent("warn", "Billing portal used local mock fallback.", {
+      userId: input.snapshot.user.id,
+    });
+
     return {
       mode: "mock",
       redirectUrl: withQueryValue(input.returnUrl, "portal", "mock"),
     };
   }
 
+  const stripe = getStripeClient();
+
+  if (!stripe) {
+    throw new ExternalServiceError("Stripe client could not be initialized.");
+  }
+
+  if (!input.snapshot.subscription?.stripeCustomerId) {
+    throw new ExternalServiceError("Stripe customer is required before opening the billing portal.");
+  }
+
+  logEvent("info", "Creating Stripe billing portal session.", {
+    userId: input.snapshot.user.id,
+    customerId: input.snapshot.subscription.stripeCustomerId,
+    mode: config.mode,
+  });
+
   const session = await stripe.billingPortal.sessions.create({
     customer: input.snapshot.subscription.stripeCustomerId,
     return_url: input.returnUrl,
+  });
+
+  logEvent("info", "Stripe billing portal session created.", {
+    userId: input.snapshot.user.id,
+    sessionId: session.id,
+    customerId: input.snapshot.subscription.stripeCustomerId,
   });
 
   await createBillingSessionRecord({
@@ -435,6 +518,13 @@ export async function handleStripeEvent(event: Stripe.Event) {
         status: "COMPLETED",
       },
     });
+
+    logEvent("info", "Stripe checkout completion applied.", {
+      userId,
+      sessionId: session.id,
+      plan,
+      subscriptionId: subscriptionId ?? null,
+    });
   }
 
   if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
@@ -470,6 +560,13 @@ export async function handleStripeEvent(event: Stripe.Event) {
       currentPeriodEnd,
       cancelAtPeriodEnd: subscription.cancel_at_period_end,
     });
+
+    logEvent("info", "Stripe subscription status applied.", {
+      userId,
+      stripeSubscriptionId: subscription.id,
+      status: subscription.status,
+      mappedPlan: plan,
+    });
   }
 
   if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
@@ -502,6 +599,12 @@ export async function handleStripeEvent(event: Stripe.Event) {
       metadata: {
         billingReason: invoice.billing_reason,
       },
+    });
+
+    logEvent("info", "Stripe invoice payment event recorded.", {
+      userId: subscription.userId,
+      stripeInvoiceId: invoice.id,
+      eventType: event.type,
     });
   }
 }

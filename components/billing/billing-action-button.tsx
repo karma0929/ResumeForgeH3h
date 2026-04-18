@@ -31,6 +31,25 @@ export function BillingActionButton({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  function navigateTo(redirectTo: string) {
+    if (typeof window === "undefined") {
+      router.push(redirectTo);
+      router.refresh();
+      return;
+    }
+
+    const targetUrl = new URL(redirectTo, window.location.origin);
+    const targetPath = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
+
+    if (targetUrl.origin !== window.location.origin) {
+      window.location.assign(targetUrl.toString());
+      return;
+    }
+
+    router.push(targetPath);
+    router.refresh();
+  }
+
   function handleClick() {
     setError(null);
 
@@ -46,8 +65,7 @@ export function BillingActionButton({
         const result = await startCheckoutAction(formData);
 
         if (result.success) {
-          router.push(result.redirectTo);
-          router.refresh();
+          navigateTo(result.redirectTo);
           return;
         }
 
@@ -58,8 +76,7 @@ export function BillingActionButton({
       const result = await openBillingPortalAction();
 
       if (result.success) {
-        router.push(result.redirectTo);
-        router.refresh();
+        navigateTo(result.redirectTo);
         return;
       }
 
