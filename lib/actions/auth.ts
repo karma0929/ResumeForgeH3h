@@ -2,32 +2,22 @@
 
 import { redirect } from "next/navigation";
 import { clearSession, createSession } from "@/lib/auth";
+import { sanitizePostAuthRedirectPath } from "@/lib/auth-redirect";
 import { trackEvent } from "@/lib/analytics";
-import { allowDevelopmentMocks } from "@/lib/env";
-import { AuthenticationError, ValidationError } from "@/lib/errors";
+import { allowDevelopmentMocks, getSessionSecret } from "@/lib/env";
+import { AuthenticationError, ConfigurationError, ValidationError } from "@/lib/errors";
 import { logEvent } from "@/lib/logger";
 import { createCredentialUser, findUserForLogin } from "@/lib/data";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import { readEmailField, readInternalPath, readPasswordField, readStringField } from "@/lib/validation";
-
-function safeNextPath(formData: FormData) {
-  const raw = formData.get("next");
-
-  if (typeof raw !== "string") {
-    return null;
-  }
-
-  const value = raw.trim();
-
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return null;
-  }
-
-  return value;
-}
+import { readEmailField, readPasswordField, readStringField } from "@/lib/validation";
 
 function reportNonCriticalAuthSideEffectError(action: "login" | "signup", error: unknown) {
   console.error(`[AUTH ${action.toUpperCase()} SIDE EFFECT ERROR]`, error);
+}
+
+function assertAuthConfiguration() {
+  // Force validation before DB mutations to avoid "user created but session failed" flows.
+  getSessionSecret();
 }
 
 export type AuthActionResult =
@@ -35,13 +25,15 @@ export type AuthActionResult =
   | { success: false; error: string };
 
 export async function loginAction(formData: FormData): Promise<AuthActionResult> {
-  const fallbackNextPath = safeNextPath(formData) ?? "/dashboard";
-  let redirectPath = fallbackNextPath;
+  const rawNext = formData.get("next");
+  const requestedNext = typeof rawNext === "string" ? rawNext : null;
+  const redirectPath = sanitizePostAuthRedirectPath(requestedNext) ?? "/dashboard";
 
   try {
+    assertAuthConfiguration();
+
     const email = readEmailField(formData);
     const password = readPasswordField(formData);
-    redirectPath = readInternalPath(formData) ?? "/dashboard";
 
     const user = await findUserForLogin(email);
 
@@ -76,9 +68,11 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     console.error("AUTH ERROR:", error);
 
     const message =
-      error instanceof ValidationError || error instanceof AuthenticationError
-        ? error.message
-        : "Unable to sign in.";
+      error instanceof ConfigurationError
+        ? "Authentication is temporarily unavailable. Please contact support."
+        : error instanceof ValidationError || error instanceof AuthenticationError
+          ? error.message
+          : "Unable to sign in.";
 
     return {
       success: false,
@@ -88,14 +82,16 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
 }
 
 export async function signupAction(formData: FormData): Promise<AuthActionResult> {
-  const fallbackNextPath = safeNextPath(formData) ?? "/dashboard";
-  let redirectPath = fallbackNextPath;
+  const rawNext = formData.get("next");
+  const requestedNext = typeof rawNext === "string" ? rawNext : null;
+  const redirectPath = sanitizePostAuthRedirectPath(requestedNext) ?? "/dashboard";
 
   try {
+    assertAuthConfiguration();
+
     const email = readEmailField(formData);
     const name = readStringField(formData, "name", { required: true, min: 2, max: 80 });
     const password = readPasswordField(formData);
-    redirectPath = readInternalPath(formData) ?? "/dashboard";
 
     const user = await createCredentialUser({
       email,
@@ -130,9 +126,11 @@ export async function signupAction(formData: FormData): Promise<AuthActionResult
     console.error("AUTH ERROR:", error);
 
     const message =
-      error instanceof ValidationError || error instanceof AuthenticationError
-        ? error.message
-        : "Unable to create account.";
+      error instanceof ConfigurationError
+        ? "Authentication is temporarily unavailable. Please contact support."
+        : error instanceof ValidationError || error instanceof AuthenticationError
+          ? error.message
+          : "Unable to create account.";
 
     return {
       success: false,

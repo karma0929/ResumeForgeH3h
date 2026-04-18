@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { sanitizePostAuthRedirectPath } from "@/lib/auth-redirect";
 import type { AuthActionResult } from "@/lib/actions/auth";
 
 export function AuthForm({
@@ -29,6 +30,7 @@ export function AuthForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [localError, setLocalError] = useState(error ?? null);
+  const safeNextPath = sanitizePostAuthRedirectPath(nextPath);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -36,15 +38,20 @@ export function AuthForm({
     setLocalError(null);
 
     startTransition(async () => {
-      const result = await action(formData);
+      try {
+        const result = await action(formData);
 
-      if (result.success) {
-        router.push(result.redirectTo);
-        router.refresh();
-        return;
+        if (result.success) {
+          router.push(result.redirectTo);
+          router.refresh();
+          return;
+        }
+
+        setLocalError(result.error);
+      } catch (error) {
+        console.error("AUTH FORM SUBMIT ERROR:", error);
+        setLocalError("Authentication is temporarily unavailable. Please try again.");
       }
-
-      setLocalError(result.error);
     });
   }
 
@@ -97,7 +104,7 @@ export function AuthForm({
             type="password"
           />
         </label>
-        {nextPath ? <input name="next" type="hidden" value={nextPath} /> : null}
+        {safeNextPath ? <input name="next" type="hidden" value={safeNextPath} /> : null}
         <Button className="w-full" disabled={pending} type="submit">
           {pending ? "Please wait..." : submitLabel}
         </Button>
