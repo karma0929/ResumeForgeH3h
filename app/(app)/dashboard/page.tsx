@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Compass,
   FileUp,
-  Wand2,
 } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +12,6 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { getSessionIdentity } from "@/lib/auth";
 import { getAppSnapshot } from "@/lib/data";
 import { getJourneyState } from "@/lib/journey";
-import { getWorkflowAction } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 
 function PathLauncherCard({
@@ -95,123 +93,55 @@ export default async function DashboardPage() {
   const identity = await getSessionIdentity();
   const snapshot = await getAppSnapshot(identity);
   const journey = getJourneyState(snapshot);
-  const nextAction = getWorkflowAction(snapshot);
-  const hasActiveJourney = journey.signals.hasAnyProgress;
 
   return (
     <div className="space-y-7">
       <DashboardHeader
-        description="ResumeForge is a guided workshop. Choose your starting path, then move step by step from intake to tailored output."
-        title="Start Your Next Resume Mission"
+        description="Choose one path and proceed step by step. ResumeForge will guide the journey from intake to a usable draft."
+        title="How do you want to start?"
       />
 
       <Card className="border-slate-200 bg-white/92 p-7">
-        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Guided entry</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Path selection</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-          How do you want to start?
+          Start with your current resume or build one from scratch.
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-          Pick the workflow that matches where you are today. You can always switch paths later
-          without losing saved progress.
+          For this release, the full guided experience is focused on the Build from scratch path.
+          You can still open Improve existing resume as an upcoming path.
         </p>
 
         <div className="mt-7 grid gap-5 xl:grid-cols-2">
           <PathLauncherCard
-            cta={journey.improve.started ? "Continue improving" : "Start with my current resume"}
-            description="Best when you already have a baseline resume and want role-specific improvements quickly."
-            highlighted={journey.recommendedPath === "improve"}
+            cta="Open improve path"
+            description="Use this if you already have a baseline resume and want role-targeted improvements."
+            highlighted={false}
             href="/dashboard/flow/improve"
             icon={FileUp}
             points={[
-              "Bring in your existing resume baseline",
-              "Add target role context and run ATS fit analysis",
-              "Generate tailored versions and export",
+              "Upload baseline resume",
+              "Run fit analysis",
+              "Tailor and export",
             ]}
             progress={journey.improve}
-            started={journey.improve.started}
+            started={false}
             title="Improve an existing resume"
           />
           <PathLauncherCard
             cta={journey.build.started ? "Continue building" : "Build my resume step by step"}
-            description="Best when you need a stronger foundation and want a guided profile-building sequence."
+            description="Best when you need a structured, guided questionnaire to build a strong resume draft."
             highlighted={journey.recommendedPath === "build"}
             href="/dashboard/flow/build"
             icon={Compass}
             points={[
-              "Define target role and build core profile",
-              "Add optional enhancements for stronger ATS matching",
-              "Generate, analyze, tailor, and export",
+              "Complete one focused step at a time",
+              "Save draft at every step",
+              "Generate, preview, edit, and export the draft",
             ]}
             progress={journey.build}
             started={journey.build.started}
             title="Build from scratch"
           />
-        </div>
-      </Card>
-
-      {hasActiveJourney ? (
-        <Card className="border-slate-200 bg-gradient-to-br from-slate-50 to-white p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Continue where you left off</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{nextAction.title}</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{nextAction.description}</p>
-            </div>
-            <Link
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-slate-900 px-5 text-sm font-medium text-white"
-              href={nextAction.href}
-            >
-              {nextAction.cta}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </Card>
-      ) : null}
-
-      <details className="rounded-3xl border border-slate-200 bg-white/80 p-5">
-        <summary className="cursor-pointer list-none text-sm font-semibold text-slate-900">
-          Workspace tools
-        </summary>
-        <p className="mt-2 text-sm text-slate-600">
-          Secondary areas are still available here and in the sidebar.
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Link
-            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            href="/dashboard/analysis"
-          >
-            Analysis
-          </Link>
-          <Link
-            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            href="/dashboard/versions"
-          >
-            Versions
-          </Link>
-          <Link
-            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            href="/dashboard/billing"
-          >
-            Billing
-          </Link>
-          <Link
-            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            href="/dashboard/settings"
-          >
-            Settings
-          </Link>
-        </div>
-      </details>
-
-      <Card className="border-slate-200 bg-slate-900 p-6 text-white">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Guided workshop principle</p>
-            <p className="mt-2 text-base leading-7 text-slate-200">
-              Start with one decision, then reveal complexity only when it helps your next step.
-            </p>
-          </div>
-          <Wand2 className="h-5 w-5 text-sky-300" />
         </div>
       </Card>
     </div>

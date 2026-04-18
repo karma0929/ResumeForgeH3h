@@ -71,11 +71,15 @@ function readValueWithFallback(
 function parseWizardStep(value: string) {
   const parsed = Number.parseInt(value, 10);
 
-  if (Number.isNaN(parsed) || parsed < 1 || parsed > 7) {
+  if (Number.isNaN(parsed) || parsed < 1 || parsed > 10) {
     return null;
   }
 
   return parsed;
+}
+
+function compactLines(lines: Array<string | null | undefined>) {
+  return lines.map((line) => (line ?? "").trim()).filter(Boolean);
 }
 
 function buildUploadRedirectPath(input: {
@@ -136,7 +140,7 @@ export async function saveResumeAction(formData: FormData) {
       { max: 40 },
       existingProfile?.basicProfile.careerLevel ?? "",
     ) as CareerLevel | "";
-    const experienceEntries = [1, 2].map((index) => ({
+    const experienceEntries = [1, 2, 3].map((index) => ({
       company: readValueWithFallback(
         formData,
         `exp${index}_company`,
@@ -181,6 +185,173 @@ export async function saveResumeAction(formData: FormData) {
       ),
     }));
 
+    const hasStructuredEducationFields = [1, 2, 3].some((index) =>
+      formData.has(`edu${index}_school`) ||
+      formData.has(`edu${index}_degree`) ||
+      formData.has(`edu${index}_major`) ||
+      formData.has(`edu${index}_graduationDate`) ||
+      formData.has(`edu${index}_gpa`) ||
+      formData.has(`edu${index}_honors`) ||
+      formData.has(`edu${index}_coursework`),
+    );
+
+    const structuredEducation = hasStructuredEducationFields
+      ? [1, 2, 3]
+          .map((index) => {
+            const school = readValueWithFallback(
+              formData,
+              `edu${index}_school`,
+              { max: 120 },
+              "",
+            );
+            const degree = readValueWithFallback(
+              formData,
+              `edu${index}_degree`,
+              { max: 120 },
+              "",
+            );
+            const major = readValueWithFallback(
+              formData,
+              `edu${index}_major`,
+              { max: 120 },
+              "",
+            );
+            const graduationDate = readValueWithFallback(
+              formData,
+              `edu${index}_graduationDate`,
+              { max: 80 },
+              "",
+            );
+            const gpa = readValueWithFallback(formData, `edu${index}_gpa`, { max: 40 }, "");
+            const honors = readValueWithFallback(formData, `edu${index}_honors`, { max: 200 }, "");
+            const coursework = readValueWithFallback(
+              formData,
+              `edu${index}_coursework`,
+              { max: 300 },
+              "",
+            );
+
+            if (!school && !degree && !major) {
+              return "";
+            }
+
+            const headline = compactLines([
+              school,
+              [degree, major].filter(Boolean).join(" in "),
+            ]).join(" | ");
+            const details = compactLines([
+              graduationDate ? `Graduation: ${graduationDate}` : "",
+              gpa ? `GPA: ${gpa}` : "",
+              honors ? `Honors: ${honors}` : "",
+              coursework ? `Coursework: ${coursework}` : "",
+            ]).join(" | ");
+
+            return compactLines([headline, details]).join(" — ");
+          })
+          .filter(Boolean)
+      : [];
+
+    const hasStructuredProjectFields = [1, 2, 3].some((index) =>
+      formData.has(`project${index}_name`) ||
+      formData.has(`project${index}_role`) ||
+      formData.has(`project${index}_dates`) ||
+      formData.has(`project${index}_technologies`) ||
+      formData.has(`project${index}_description`) ||
+      formData.has(`project${index}_impact`),
+    );
+
+    const structuredProjects = hasStructuredProjectFields
+      ? [1, 2, 3]
+          .map((index) => {
+            const name = readValueWithFallback(formData, `project${index}_name`, { max: 120 }, "");
+            const role = readValueWithFallback(formData, `project${index}_role`, { max: 120 }, "");
+            const dates = readValueWithFallback(formData, `project${index}_dates`, { max: 80 }, "");
+            const technologies = readValueWithFallback(
+              formData,
+              `project${index}_technologies`,
+              { max: 200 },
+              "",
+            );
+            const description = readValueWithFallback(
+              formData,
+              `project${index}_description`,
+              { max: 600 },
+              "",
+            );
+            const impact = readValueWithFallback(formData, `project${index}_impact`, { max: 400 }, "");
+
+            if (!name && !description) {
+              return "";
+            }
+
+            const headline = compactLines([
+              name,
+              role ? `Role: ${role}` : "",
+              dates,
+            ]).join(" | ");
+            const body = compactLines([
+              technologies ? `Technologies: ${technologies}` : "",
+              description,
+              impact ? `Impact: ${impact}` : "",
+            ]).join(" — ");
+
+            return compactLines([headline, body]).join(" — ");
+          })
+          .filter(Boolean)
+      : [];
+
+    const hasSkillBuckets =
+      formData.has("languagesCsv") ||
+      formData.has("frameworksCsv") ||
+      formData.has("toolsPlatformsCsv") ||
+      formData.has("softSkillsCsv") ||
+      formData.has("domainKnowledgeCsv");
+
+    const bucketSkills = hasSkillBuckets
+      ? [
+          ...readCsv(formData, "languagesCsv", 1500),
+          ...readCsv(formData, "frameworksCsv", 1500),
+          ...readCsv(formData, "toolsPlatformsCsv", 1500),
+          ...readCsv(formData, "softSkillsCsv", 1500),
+          ...readCsv(formData, "domainKnowledgeCsv", 1500),
+        ].filter(Boolean)
+      : [];
+
+    const uniqueSkills = bucketSkills.length > 0 ? Array.from(new Set(bucketSkills)) : null;
+
+    const enhancementNotes = compactLines([
+      formData.has("volunteerExperience")
+        ? `Volunteer: ${readValueWithFallback(formData, "volunteerExperience", { max: 600 }, "")}`
+        : "",
+      formData.has("leadershipExperience")
+        ? `Leadership: ${readValueWithFallback(formData, "leadershipExperience", { max: 600 }, "")}`
+        : "",
+      formData.has("extracurriculars")
+        ? `Extracurriculars: ${readValueWithFallback(formData, "extracurriculars", { max: 600 }, "")}`
+        : "",
+      formData.has("publicationsLines")
+        ? `Publications: ${readLines(formData, "publicationsLines", 1200).join("; ")}`
+        : "",
+      formData.has("targetIndustries")
+        ? `Target industries: ${readValueWithFallback(formData, "targetIndustries", { max: 300 }, "")}`
+        : "",
+      formData.has("studentProfessionalPolish")
+        ? `Tone preference: ${readValueWithFallback(formData, "studentProfessionalPolish", { max: 120 }, "")}`
+        : "",
+      formData.has("onePagePreference")
+        ? `One-page preference: ${readValueWithFallback(formData, "onePagePreference", { max: 120 }, "")}`
+        : "",
+      formData.has("summaryStyle")
+        ? `Summary style: ${readValueWithFallback(formData, "summaryStyle", { max: 200 }, "")}`
+        : "",
+      formData.has("sectionEmphasis")
+        ? `Section emphasis: ${readValueWithFallback(formData, "sectionEmphasis", { max: 300 }, "")}`
+        : "",
+    ]);
+
+    const baseNotes = readValueWithFallback(formData, "resumeNotes", { max: 2000 }, existingProfile?.notes ?? "");
+    const mergedNotes = compactLines([baseNotes, ...enhancementNotes]).join("\n");
+
     const profileData: ResumeProfileData = {
       mode: intakeMode,
       basicProfile: {
@@ -223,15 +394,21 @@ export async function saveResumeAction(formData: FormData) {
         { max: 2000 },
         existingProfile?.professionalSummary ?? "",
       ),
-      skills: formData.has("skillsCsv")
-        ? readCsv(formData, "skillsCsv", 3000)
+      skills: uniqueSkills
+        ? uniqueSkills
+        : formData.has("skillsCsv")
+          ? readCsv(formData, "skillsCsv", 3000)
         : (existingProfile?.skills ?? []),
       workExperiences: experienceEntries.filter((entry) => Object.values(entry).some(Boolean)),
-      education: formData.has("educationLines")
-        ? readLines(formData, "educationLines", 3000)
+      education: structuredEducation.length > 0
+        ? structuredEducation
+        : formData.has("educationLines")
+          ? readLines(formData, "educationLines", 3000)
         : (existingProfile?.education ?? []),
-      projects: formData.has("projectLines")
-        ? readLines(formData, "projectLines", 3000)
+      projects: structuredProjects.length > 0
+        ? structuredProjects
+        : formData.has("projectLines")
+          ? readLines(formData, "projectLines", 3000)
         : (existingProfile?.projects ?? []),
       certifications: formData.has("certificationLines")
         ? readLines(formData, "certificationLines", 2000)
@@ -279,7 +456,7 @@ export async function saveResumeAction(formData: FormData) {
           existingProfile?.preferences.industryPreference ?? "",
         ),
       },
-      notes: readValueWithFallback(formData, "resumeNotes", { max: 2000 }, existingProfile?.notes ?? ""),
+      notes: mergedNotes,
     };
 
     await createResumeRecord({
@@ -294,6 +471,7 @@ export async function saveResumeAction(formData: FormData) {
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/upload");
+    revalidatePath("/dashboard/flow/build");
     redirect(
       buildUploadRedirectPath({
         basePath: returnTo,
@@ -306,10 +484,13 @@ export async function saveResumeAction(formData: FormData) {
     );
   } catch (error) {
     const message = error instanceof ValidationError ? error.message : "Unable to save resume.";
+    const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/upload" });
+    const returnTo =
+      returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/dashboard/upload";
     const step = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "" }));
     redirect(
       buildUploadRedirectPath({
-        basePath: "/dashboard/upload",
+        basePath: returnTo,
         step,
         query: { error: message },
       }),
@@ -358,16 +539,8 @@ export async function saveJobDescriptionAction(formData: FormData) {
       existingJobDescription?.description ?? "",
     );
 
-    if (!isDraft && company.length < 2) {
-      throw new ValidationError("company must be at least 2 characters.");
-    }
-
     if (!isDraft && role.length < 2) {
       throw new ValidationError("role must be at least 2 characters.");
-    }
-
-    if (!isDraft && description.length < 80) {
-      throw new ValidationError("description must be at least 80 characters.");
     }
 
     const allowedPriorities: TargetRoleBriefData["hiringPriorities"] = [
@@ -461,6 +634,7 @@ export async function saveJobDescriptionAction(formData: FormData) {
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/upload");
+    revalidatePath("/dashboard/flow/build");
     redirect(
       buildUploadRedirectPath({
         basePath: returnTo,
@@ -474,10 +648,13 @@ export async function saveJobDescriptionAction(formData: FormData) {
   } catch (error) {
     const message =
       error instanceof ValidationError ? error.message : "Unable to save job description.";
+    const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/upload" });
+    const returnTo =
+      returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/dashboard/upload";
     const step = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "" }));
     redirect(
       buildUploadRedirectPath({
-        basePath: "/dashboard/upload",
+        basePath: returnTo,
         step,
         query: { error: message },
       }),
@@ -509,6 +686,57 @@ export async function saveAnalysisAction(formData: FormData) {
   } catch (error) {
     const message = error instanceof ValidationError ? error.message : "Unable to save analysis.";
     redirect(`/dashboard/analysis?error=${encodeURIComponent(message)}`);
+  }
+}
+
+export async function generateBuildDraftAction(formData: FormData) {
+  try {
+    const snapshot = await requireSnapshot();
+    const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/build" });
+    const returnTo =
+      returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/dashboard/flow/build";
+    const currentStep = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "10" })) ?? 10;
+    const resumeId = readStringField(formData, "resumeId", { max: 120 });
+    const resume = resumeId
+      ? snapshot.resumes.find((item) => item.id === resumeId) ?? snapshot.resumes[0]
+      : snapshot.resumes[0];
+
+    if (!resume) {
+      throw new ValidationError("Add at least your basic profile before generating.");
+    }
+
+    await createResumeRecord({
+      userId: snapshot.user.id,
+      resumeId: resume.id,
+      title: resume.title || "Generated Resume Draft",
+      originalText: "",
+      intakeMode: "guided",
+      profileData: resume.profileData,
+      createVersion: true,
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/flow/build");
+    revalidatePath("/dashboard/versions");
+    redirect(
+      buildUploadRedirectPath({
+        basePath: returnTo,
+        step: currentStep,
+        query: {
+          generated: "1",
+        },
+      }),
+    );
+  } catch (error) {
+    const message = error instanceof ValidationError ? error.message : "Unable to generate resume draft.";
+    const step = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "9" })) ?? 9;
+    redirect(
+      buildUploadRedirectPath({
+        basePath: "/dashboard/flow/build",
+        step,
+        query: { error: message },
+      }),
+    );
   }
 }
 

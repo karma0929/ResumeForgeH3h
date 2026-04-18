@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Compass, CreditCard, FileText, LayoutDashboard, Settings, Shield, Sparkles, Wand2 } from "lucide-react";
+import { Compass, CreditCard, FileText, LayoutDashboard, Settings, Shield, Sparkles } from "lucide-react";
 import type { AppUser } from "@/lib/types";
 import type { OnboardingProgress } from "@/lib/onboarding";
 import { logoutAction } from "@/lib/actions/auth";
@@ -10,12 +10,8 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Start", icon: LayoutDashboard },
-  { href: "/dashboard/flow/improve", label: "Improve Path", icon: FileText },
-  { href: "/dashboard/flow/build", label: "Build Path", icon: Compass },
-  { href: "/dashboard/upload", label: "Workshop", icon: FileText },
-  { href: "/dashboard/analysis", label: "Resume Analysis", icon: BarChart3 },
-  { href: "/dashboard/tailoring", label: "Job Tailoring", icon: Wand2 },
-  { href: "/dashboard/versions", label: "Resume Versions", icon: Sparkles },
+  { href: "/dashboard/flow/improve", label: "Improve", icon: FileText },
+  { href: "/dashboard/flow/build", label: "Build", icon: Compass },
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];

@@ -565,14 +565,15 @@ export async function createResumeRecord(input: {
             });
 
         if (shouldCreateVersion) {
-          const hasOriginalVersion = await transaction.resumeVersion.count({
+          const originalVersion = await transaction.resumeVersion.findFirst({
             where: {
               resumeId: resume.id,
               type: "ORIGINAL",
             },
+            orderBy: { createdAt: "asc" },
           });
 
-          if (hasOriginalVersion === 0) {
+          if (!originalVersion) {
             await transaction.resumeVersion.create({
               data: {
                 userId: input.userId,
@@ -583,6 +584,15 @@ export async function createResumeRecord(input: {
                 summary: "Imported baseline resume.",
                 score: null,
                 comparisonNotes: ["Original source version for future tailoring."],
+              },
+            });
+          } else {
+            await transaction.resumeVersion.update({
+              where: { id: originalVersion.id },
+              data: {
+                name: `${input.title} Original`,
+                content: safeText,
+                summary: "Latest generated baseline resume.",
               },
             });
           }
