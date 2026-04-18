@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { trackEvent } from "@/lib/analytics";
 import { getSessionIdentity } from "@/lib/auth";
 import { requireFeatureAccess } from "@/lib/billing/guards";
@@ -94,6 +95,12 @@ function buildUploadRedirectPath(input: {
   }
 
   return `${input.basePath}?${params.toString()}`;
+}
+
+function rethrowRedirect(error: unknown) {
+  if (isRedirectError(error)) {
+    throw error;
+  }
 }
 
 export async function saveResumeAction(formData: FormData) {
@@ -459,6 +466,11 @@ export async function saveResumeAction(formData: FormData) {
       notes: mergedNotes,
     };
 
+    const shouldCreateVersion =
+      intakeMode === "quick"
+        ? !isDraft
+        : !isDraft && ((nextStep ?? currentStep ?? 0) >= 9);
+
     await createResumeRecord({
       userId: snapshot.user.id,
       resumeId: resumeId || snapshot.resumes[0]?.id,
@@ -466,7 +478,7 @@ export async function saveResumeAction(formData: FormData) {
       originalText: quickResumeText,
       intakeMode,
       profileData,
-      createVersion: !isDraft,
+      createVersion: shouldCreateVersion,
     });
 
     revalidatePath("/dashboard");
@@ -483,6 +495,15 @@ export async function saveResumeAction(formData: FormData) {
       }),
     );
   } catch (error) {
+    rethrowRedirect(error);
+    console.error("saveResumeAction failed", {
+      step: readStringField(formData, "currentStep", { max: 10, fallback: "" }),
+      nextStep: readStringField(formData, "nextStep", { max: 10, fallback: "" }),
+      returnTo: readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/upload" }),
+      intakeMode: readStringField(formData, "intakeMode", { max: 20, fallback: "" }),
+      resumeId: readStringField(formData, "resumeId", { max: 120, fallback: "" }),
+    });
+    console.error(error);
     const message = error instanceof ValidationError ? error.message : "Unable to save resume.";
     const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/upload" });
     const returnTo =
@@ -646,6 +667,15 @@ export async function saveJobDescriptionAction(formData: FormData) {
       }),
     );
   } catch (error) {
+    rethrowRedirect(error);
+    console.error("saveJobDescriptionAction failed", {
+      step: readStringField(formData, "currentStep", { max: 10, fallback: "" }),
+      nextStep: readStringField(formData, "nextStep", { max: 10, fallback: "" }),
+      returnTo: readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/upload" }),
+      jobDescriptionId: readStringField(formData, "jobDescriptionId", { max: 120, fallback: "" }),
+      role: readStringField(formData, "role", { max: 120, fallback: "" }),
+    });
+    console.error(error);
     const message =
       error instanceof ValidationError ? error.message : "Unable to save job description.";
     const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/upload" });
@@ -684,6 +714,9 @@ export async function saveAnalysisAction(formData: FormData) {
     revalidatePath("/dashboard/analysis");
     redirect(`/dashboard/analysis?resumeId=${resumeId}&jobDescriptionId=${jobDescriptionId}&saved=1`);
   } catch (error) {
+    rethrowRedirect(error);
+    console.error("saveAnalysisAction failed");
+    console.error(error);
     const message = error instanceof ValidationError ? error.message : "Unable to save analysis.";
     redirect(`/dashboard/analysis?error=${encodeURIComponent(message)}`);
   }
@@ -728,6 +761,13 @@ export async function generateBuildDraftAction(formData: FormData) {
       }),
     );
   } catch (error) {
+    rethrowRedirect(error);
+    console.error("generateBuildDraftAction failed", {
+      step: readStringField(formData, "currentStep", { max: 10, fallback: "9" }),
+      returnTo: readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/build" }),
+      resumeId: readStringField(formData, "resumeId", { max: 120, fallback: "" }),
+    });
+    console.error(error);
     const message = error instanceof ValidationError ? error.message : "Unable to generate resume draft.";
     const step = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "9" })) ?? 9;
     redirect(
@@ -775,6 +815,9 @@ export async function runAnalysisAction(formData: FormData) {
     revalidatePath("/dashboard/analysis");
     redirect(`/dashboard/analysis?resumeId=${resumeId}&jobDescriptionId=${jobDescriptionId}&ran=1`);
   } catch (error) {
+    rethrowRedirect(error);
+    console.error("runAnalysisAction failed");
+    console.error(error);
     const message =
       error instanceof ValidationError || error instanceof RateLimitError
         ? error.message
@@ -808,6 +851,9 @@ export async function saveTailoredVersionAction(formData: FormData) {
     revalidatePath("/dashboard/versions");
     redirect(`/dashboard/tailoring?resumeId=${resumeId}&jobDescriptionId=${jobDescriptionId}&draft=1&saved=1`);
   } catch (error) {
+    rethrowRedirect(error);
+    console.error("saveTailoredVersionAction failed");
+    console.error(error);
     const message = error instanceof ValidationError ? error.message : "Unable to save tailored version.";
     redirect(`/dashboard/tailoring?error=${encodeURIComponent(message)}`);
   }
@@ -844,6 +890,9 @@ export async function runTailoredDraftAction(formData: FormData) {
     revalidatePath("/dashboard/tailoring");
     redirect(`/dashboard/tailoring?resumeId=${resumeId}&jobDescriptionId=${jobDescriptionId}&draft=1`);
   } catch (error) {
+    rethrowRedirect(error);
+    console.error("runTailoredDraftAction failed");
+    console.error(error);
     const message =
       error instanceof ValidationError || error instanceof RateLimitError
         ? error.message
@@ -898,6 +947,9 @@ export async function runBulletRewriteAction(formData: FormData) {
       )}&rewriteSaved=1`,
     );
   } catch (error) {
+    rethrowRedirect(error);
+    console.error("runBulletRewriteAction failed");
+    console.error(error);
     const message =
       error instanceof ValidationError || error instanceof RateLimitError
         ? error.message
@@ -923,6 +975,9 @@ export async function updateSettingsAction(formData: FormData) {
     revalidatePath("/dashboard/settings");
     redirect("/dashboard/settings?saved=1");
   } catch (error) {
+    rethrowRedirect(error);
+    console.error("updateSettingsAction failed");
+    console.error(error);
     const message = error instanceof ValidationError ? error.message : "Unable to save settings.";
     redirect(`/dashboard/settings?error=${encodeURIComponent(message)}`);
   }
