@@ -16,6 +16,11 @@ import { generateTailoredResume } from "@/lib/services/generate-tailored-resume"
 import { parseResume } from "@/lib/services/resume-parser";
 import { rewriteBullet } from "@/lib/services/rewrite-bullet";
 import { scoreResume } from "@/lib/services/score-resume";
+import {
+  createDefaultResumeProfileData,
+  createDefaultTargetRoleBriefData,
+  splitCsv,
+} from "@/lib/workshop";
 
 const createdAt = "2026-04-10T18:00:00.000Z";
 const updatedAt = "2026-04-16T17:00:00.000Z";
@@ -97,8 +102,24 @@ const resume: ResumeRecord = {
   id: "resume_demo",
   userId: user.id,
   title: "Aarav Patel General Resume",
+  intakeMode: "quick",
   originalText: resumeText,
   parsed: parsedResume,
+  profileData: {
+    ...createDefaultResumeProfileData("quick"),
+    basicProfile: {
+      ...createDefaultResumeProfileData("quick").basicProfile,
+      fullName: "Aarav Patel",
+      currentTitle: "MS Student / Software Engineer",
+      targetTitle: "Software Engineer, Product",
+      location: "Seattle, WA",
+      careerLevel: "entry",
+    },
+    skills: splitCsv("React, Next.js, TypeScript, PostgreSQL, Prisma, Python, SQL, REST APIs"),
+    professionalSummary:
+      "Early-career software engineer with experience shipping product features, internal tooling, and workflow automation in U.S. team environments.",
+  },
+  profileCompleteness: 78,
   createdAt,
   updatedAt,
 };
@@ -111,6 +132,19 @@ const jobDescriptionRecord: JobDescriptionRecord = {
   location: "New York, NY",
   description: jobDescriptionText,
   keywords: jobDescription.keywords,
+  briefData: {
+    ...createDefaultTargetRoleBriefData(),
+    seniorityLevel: "Entry to Mid",
+    employmentType: "Full-time",
+    workMode: "Hybrid",
+    industryDomain: "FinTech",
+    topRequiredSkills: ["React", "TypeScript", "PostgreSQL", "APIs", "Analytics"],
+    emphasizeKeywords: ["product thinking", "ownership", "experimentation"],
+    hiringPriorities: ["technical_depth", "execution", "communication"],
+    atsIntensity: "High",
+    technicalIntensity: "High",
+  },
+  briefCompleteness: 82,
   createdAt,
   updatedAt,
 };

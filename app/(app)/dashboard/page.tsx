@@ -10,19 +10,21 @@ import {
   Sparkles,
 } from "lucide-react";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
+import { AIGuidancePanel } from "@/components/dashboard/ai-guidance-panel";
 import { UsageMeterCard } from "@/components/billing/usage-meter-card";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { MetricCard } from "@/components/dashboard/metric-card";
-import { OnboardingFlow } from "@/components/dashboard/onboarding-flow";
+import { WorkflowStepper } from "@/components/dashboard/workflow-stepper";
 import { ScoreSummary } from "@/components/dashboard/score-summary";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { getAIGuidanceSummary } from "@/lib/ai-guidance";
 import { getSessionIdentity } from "@/lib/auth";
 import { hasFeatureAccess } from "@/lib/billing/guards";
 import { getPlanDefinition } from "@/lib/billing/plans";
 import { getAppSnapshot } from "@/lib/data";
-import { getOnboardingProgress } from "@/lib/onboarding";
+import { getWorkflowAction, getWorkflowState } from "@/lib/onboarding";
 import { getUsageOverview } from "@/lib/usage";
 import type { ResumeAnalysis } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -44,7 +46,9 @@ export default async function DashboardPage() {
     : null;
   const currentPlan = snapshot.subscription?.plan ?? "FREE";
   const canCompareVersions = hasFeatureAccess(snapshot.subscription?.plan, "version_compare");
-  const onboarding = getOnboardingProgress(snapshot);
+  const workflow = getWorkflowState(snapshot);
+  const nextAction = getWorkflowAction(snapshot);
+  const guidance = getAIGuidanceSummary(snapshot);
   const usageOverview = getUsageOverview(snapshot);
 
   return (
@@ -81,14 +85,31 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {!onboarding.isComplete ? (
-        <OnboardingFlow
-          completed={onboarding.completed}
-          percent={onboarding.percent}
-          steps={onboarding.steps}
-          total={onboarding.total}
-        />
-      ) : null}
+      <WorkflowStepper workflow={workflow} />
+
+      <AIGuidancePanel guidance={guidance} />
+
+      <Card className="bg-gradient-to-br from-slate-50 to-white">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Next best action</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+              {nextAction.title}
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{nextAction.description}</p>
+          </div>
+          <Badge className="bg-white text-slate-700">{workflow.percent}% complete</Badge>
+        </div>
+        <div className="mt-6">
+          <Link
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-slate-900 px-5 text-sm font-medium text-white"
+            href={nextAction.href}
+          >
+            {nextAction.cta}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </Card>
 
       {analysis && jobDescription ? (
         <ScoreSummary

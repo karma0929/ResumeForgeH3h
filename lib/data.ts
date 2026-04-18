@@ -7,11 +7,14 @@ import type {
   JobDescriptionRecord,
   PaymentRecord,
   ResumeAnalysis,
+  ResumeIntakeMode,
+  ResumeProfileData,
   ResumeRecord,
   ResumeVersionRecord,
   RewriteMode,
   RewriteResult,
   SubscriptionRecord,
+  TargetRoleBriefData,
   TailoredResumeOutput,
   UsageCounterRecord,
 } from "@/lib/types";
@@ -28,6 +31,17 @@ import { getFallbackSnapshot } from "@/lib/mock-data";
 import { prisma, isDatabaseConfigured } from "@/lib/prisma";
 import { parseResume } from "@/lib/services/resume-parser";
 import type { UsageAction } from "@/lib/usage";
+import {
+  buildJobDescriptionText,
+  buildResumeTextFromProfile,
+  calculateResumeProfileCompleteness,
+  calculateTargetRoleBriefCompleteness,
+  createDefaultResumeProfileData,
+  createDefaultTargetRoleBriefData,
+  normalizeResumeProfileData,
+  normalizeTargetRoleBriefData,
+  splitCsv,
+} from "@/lib/workshop";
 
 const warnedMessages = new Set<string>();
 
@@ -117,17 +131,28 @@ function mapResume(resume: {
   id: string;
   userId: string;
   title: string;
+  intakeMode: string;
   originalText: string;
   parsedSections: Prisma.JsonValue;
+  profileData: Prisma.JsonValue | null;
+  profileCompleteness: number;
   createdAt: Date;
   updatedAt: Date;
 }): ResumeRecord {
+  const intakeMode = (resume.intakeMode === "guided" ? "guided" : "quick") as ResumeIntakeMode;
+  const parsedProfile = resume.profileData
+    ? (resume.profileData as unknown as ResumeProfileData)
+    : createDefaultResumeProfileData(intakeMode);
+
   return {
     id: resume.id,
     userId: resume.userId,
     title: resume.title,
+    intakeMode,
     originalText: resume.originalText,
     parsed: parseJson(resume.parsedSections, parseResume(resume.originalText)),
+    profileData: normalizeResumeProfileData(parsedProfile, intakeMode),
+    profileCompleteness: resume.profileCompleteness,
     createdAt: resume.createdAt.toISOString(),
     updatedAt: resume.updatedAt.toISOString(),
   };
@@ -141,9 +166,15 @@ function mapJobDescription(jobDescription: {
   location: string | null;
   description: string;
   keywords: Prisma.JsonValue;
+  briefData: Prisma.JsonValue | null;
+  briefCompleteness: number;
   createdAt: Date;
   updatedAt: Date;
 }): JobDescriptionRecord {
+  const parsedBrief = jobDescription.briefData
+    ? (jobDescription.briefData as unknown as TargetRoleBriefData)
+    : createDefaultTargetRoleBriefData();
+
   return {
     id: jobDescription.id,
     userId: jobDescription.userId,
@@ -152,6 +183,8 @@ function mapJobDescription(jobDescription: {
     location: jobDescription.location ?? "",
     description: jobDescription.description,
     keywords: parseJson<string[]>(jobDescription.keywords, []),
+    briefData: normalizeTargetRoleBriefData(parsedBrief),
+    briefCompleteness: jobDescription.briefCompleteness,
     createdAt: jobDescription.createdAt.toISOString(),
     updatedAt: jobDescription.updatedAt.toISOString(),
   };
@@ -479,36 +512,81 @@ function resolveSnapshotRecords(
 
 export async function createResumeRecord(input: {
   userId: string;
+  resumeId?: string;
   title: string;
   originalText: string;
+  intakeMode: ResumeIntakeMode;
+  profileData?: ResumeProfileData | null;
+  createVersion?: boolean;
 }) {
   // TODO: replace paste-only intake with PDF/DOCX parsing before persisting.
-  const parsed = parseResume(input.originalText);
+  const profileData = normalizeResumeProfileData(input.profileData, input.intakeMode);
+  const resolvedText = buildResumeTextFromProfile({
+    title: input.title,
+    profile: profileData,
+    fallbackText: input.originalText,
+  });
+  const safeText =
+    resolvedText.length >= 40
+      ? resolvedText
+      : `${input.title}\n\nResume draft saved. Add more detail in guided mode to improve analysis quality.`;
+  const parsed = parseResume(safeText);
+  const profileCompleteness = calculateResumeProfileCompleteness({
+    originalText: safeText,
+    profile: profileData,
+  });
+  const shouldCreateVersion = input.createVersion ?? true;
 
   return withFallback(
     async () => {
       const result = await prisma.$transaction(async (transaction) => {
-        const resume = await transaction.resume.create({
-          data: {
-            userId: input.userId,
-            title: input.title,
-            originalText: input.originalText,
-            parsedSections: parsed as unknown as Prisma.InputJsonValue,
-          },
-        });
+        const resume = input.resumeId
+          ? await transaction.resume.update({
+              where: { id: input.resumeId },
+              data: {
+                title: input.title,
+                intakeMode: input.intakeMode,
+                originalText: safeText,
+                parsedSections: parsed as unknown as Prisma.InputJsonValue,
+                profileData: profileData as unknown as Prisma.InputJsonValue,
+                profileCompleteness,
+              },
+            })
+          : await transaction.resume.create({
+              data: {
+                userId: input.userId,
+                title: input.title,
+                intakeMode: input.intakeMode,
+                originalText: safeText,
+                parsedSections: parsed as unknown as Prisma.InputJsonValue,
+                profileData: profileData as unknown as Prisma.InputJsonValue,
+                profileCompleteness,
+              },
+            });
 
-        await transaction.resumeVersion.create({
-          data: {
-            userId: input.userId,
-            resumeId: resume.id,
-            name: `${input.title} Original`,
-            type: "ORIGINAL",
-            content: input.originalText,
-            summary: "Imported baseline resume.",
-            score: null,
-            comparisonNotes: ["Original source version for future tailoring."],
-          },
-        });
+        if (shouldCreateVersion) {
+          const hasOriginalVersion = await transaction.resumeVersion.count({
+            where: {
+              resumeId: resume.id,
+              type: "ORIGINAL",
+            },
+          });
+
+          if (hasOriginalVersion === 0) {
+            await transaction.resumeVersion.create({
+              data: {
+                userId: input.userId,
+                resumeId: resume.id,
+                name: `${input.title} Original`,
+                type: "ORIGINAL",
+                content: safeText,
+                summary: "Imported baseline resume.",
+                score: null,
+                comparisonNotes: ["Original source version for future tailoring."],
+              },
+            });
+          }
+        }
 
         return resume;
       });
@@ -521,28 +599,71 @@ export async function createResumeRecord(input: {
 
 export async function createJobDescriptionRecord(input: {
   userId: string;
+  jobDescriptionId?: string;
   company: string;
   role: string;
   location: string;
   description: string;
+  briefData?: TargetRoleBriefData | null;
 }) {
-  const ai = getAIService({ preferLive: true });
-  const analysis = await ai.analyzeJobDescription({
-    jobDescriptionText: input.description,
+  const briefData = normalizeTargetRoleBriefData(input.briefData);
+  const resolvedDescription = buildJobDescriptionText({
+    company: input.company,
+    role: input.role,
+    location: input.location,
+    description: input.description,
+    brief: briefData,
   });
+  const safeDescription =
+    resolvedDescription.length >= 80
+      ? resolvedDescription
+      : `${input.company} ${input.role}\n\n${resolvedDescription || "Target role brief saved as draft. Add more job description detail to improve ATS analysis."}`;
+  const briefCompleteness = calculateTargetRoleBriefCompleteness({
+    company: input.company,
+    role: input.role,
+    description: safeDescription,
+    brief: briefData,
+  });
+
+  let keywords = [...briefData.topRequiredSkills, ...briefData.emphasizeKeywords];
+
+  if (safeDescription.length >= 80) {
+    const ai = getAIService({ preferLive: true });
+    const analysis = await ai.analyzeJobDescription({
+      jobDescriptionText: safeDescription,
+    });
+    keywords = analysis.keywords;
+  } else if (keywords.length === 0) {
+    keywords = splitCsv(`${input.role}, ${input.company}`);
+  }
 
   return withFallback(
     async () => {
-      const result = await prisma.jobDescription.create({
-        data: {
-          userId: input.userId,
-          company: input.company,
-          role: input.role,
-          location: input.location || null,
-          description: input.description,
-          keywords: analysis.keywords as unknown as Prisma.InputJsonValue,
-        },
-      });
+      const result = input.jobDescriptionId
+        ? await prisma.jobDescription.update({
+            where: { id: input.jobDescriptionId },
+            data: {
+              company: input.company,
+              role: input.role,
+              location: input.location || null,
+              description: safeDescription,
+              keywords: keywords as unknown as Prisma.InputJsonValue,
+              briefData: briefData as unknown as Prisma.InputJsonValue,
+              briefCompleteness,
+            },
+          })
+        : await prisma.jobDescription.create({
+            data: {
+              userId: input.userId,
+              company: input.company,
+              role: input.role,
+              location: input.location || null,
+              description: safeDescription,
+              keywords: keywords as unknown as Prisma.InputJsonValue,
+              briefData: briefData as unknown as Prisma.InputJsonValue,
+              briefCompleteness,
+            },
+          });
 
       return result.id;
     },

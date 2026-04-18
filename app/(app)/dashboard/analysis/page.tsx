@@ -11,6 +11,7 @@ import { UsageLimitPrompt } from "@/components/billing/usage-limit-prompt";
 import { UsageMeterCard } from "@/components/billing/usage-meter-card";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { ScoreSummary } from "@/components/dashboard/score-summary";
+import { WorkflowStepper } from "@/components/dashboard/workflow-stepper";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -20,6 +21,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { runAnalysisAction } from "@/lib/actions/dashboard";
 import { getSessionIdentity } from "@/lib/auth";
 import { getAppSnapshot } from "@/lib/data";
+import { getWorkflowAction, getWorkflowState } from "@/lib/onboarding";
 import { getUsageRemaining } from "@/lib/usage";
 import type { ResumeAnalysis } from "@/lib/types";
 
@@ -74,6 +76,8 @@ export default async function AnalysisPage({
           : "Clarity is working. Preserve this structure in every tailored version.",
       ]
     : [];
+  const workflow = getWorkflowState(snapshot);
+  const nextAction = getWorkflowAction(snapshot);
 
   return (
     <div className="space-y-8">
@@ -105,6 +109,8 @@ export default async function AnalysisPage({
           tone="success"
         />
       ) : null}
+
+      <WorkflowStepper compact currentStepId="analysis" workflow={workflow} />
 
       <Card>
         <form action={runAnalysisAction} className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
@@ -403,6 +409,23 @@ export default async function AnalysisPage({
           }
         />
       )}
+
+      <Card className="bg-gradient-to-br from-slate-50 to-white">
+        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Next best action</p>
+        <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
+          {nextAction.title}
+        </h2>
+        <p className="mt-3 text-sm leading-7 text-slate-600">{nextAction.description}</p>
+        <div className="mt-5">
+          <Link
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-slate-900 px-5 text-sm font-medium text-white"
+            href={nextAction.href}
+          >
+            {nextAction.cta}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </Card>
     </div>
   );
 }

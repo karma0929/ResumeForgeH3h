@@ -110,8 +110,11 @@ model Resume {
   id             String          @id @default(cuid())
   userId         String
   title          String
+  intakeMode     String          @default("quick")
   originalText   String
   parsedSections Json
+  profileData    Json?
+  profileCompleteness Int        @default(0)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -129,6 +132,8 @@ model JobDescription {
   location       String?
   description    String
   keywords       Json
+  briefData      Json?
+  briefCompleteness Int          @default(0)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)

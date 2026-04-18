@@ -5,6 +5,14 @@ import { generateTailoredResume } from "@/lib/services/generate-tailored-resume"
 import { parseResume } from "@/lib/services/resume-parser";
 import { rewriteBullet } from "@/lib/services/rewrite-bullet";
 import { scoreResume } from "@/lib/services/score-resume";
+import type { TargetRoleBriefData } from "@/lib/types";
+import {
+  calculateResumeProfileCompleteness,
+  calculateTargetRoleBriefCompleteness,
+  createDefaultResumeProfileData,
+  createDefaultTargetRoleBriefData,
+  splitCsv,
+} from "@/lib/workshop";
 
 const prisma = new PrismaClient();
 
@@ -149,14 +157,49 @@ async function main() {
     },
   });
 
+  const baseProfile = createDefaultResumeProfileData("quick");
+  const profileData = {
+    ...baseProfile,
+    basicProfile: {
+      ...baseProfile.basicProfile,
+      fullName: "Aarav Patel",
+      currentTitle: "MS Student / Software Engineer",
+      targetTitle: "Software Engineer, Product",
+      location: "Seattle, WA",
+      careerLevel: "entry" as const,
+    },
+    professionalSummary:
+      "Early-career software engineer with experience building internal tools and customer-facing product features.",
+    skills: splitCsv("React, Next.js, TypeScript, PostgreSQL, Prisma, Python, SQL, REST APIs"),
+  };
+
   const resume = await prisma.resume.create({
     data: {
       userId: user.id,
       title: "Aarav Patel General Resume",
+      intakeMode: "quick",
       originalText: resumeText,
       parsedSections: parsedResume as unknown as Prisma.InputJsonValue,
+      profileData: profileData as unknown as Prisma.InputJsonValue,
+      profileCompleteness: calculateResumeProfileCompleteness({
+        originalText: resumeText,
+        profile: profileData,
+      }),
     },
   });
+
+  const briefData: TargetRoleBriefData = {
+    ...createDefaultTargetRoleBriefData(),
+    seniorityLevel: "Entry to Mid",
+    employmentType: "Full-time",
+    workMode: "Hybrid",
+    industryDomain: "FinTech",
+    topRequiredSkills: ["React", "TypeScript", "PostgreSQL", "APIs", "Analytics"],
+    emphasizeKeywords: ["product thinking", "ownership", "experimentation"],
+    hiringPriorities: ["technical_depth", "execution", "communication"],
+    atsIntensity: "High",
+    technicalIntensity: "High",
+  };
 
   const jobDescription = await prisma.jobDescription.create({
     data: {
@@ -166,6 +209,13 @@ async function main() {
       location: "New York, NY",
       description: jobDescriptionText,
       keywords: jd.keywords as unknown as Prisma.InputJsonValue,
+      briefData: briefData as unknown as Prisma.InputJsonValue,
+      briefCompleteness: calculateTargetRoleBriefCompleteness({
+        company: "Ramp",
+        role: "Software Engineer, Product",
+        description: jobDescriptionText,
+        brief: briefData,
+      }),
     },
   });
 

@@ -17,6 +17,15 @@ export type RewriteMode =
   | "more_technical"
   | "leadership_focused"
   | "tailored_to_jd";
+export type ResumeIntakeMode = "quick" | "guided";
+export type CareerLevel =
+  | "student"
+  | "entry"
+  | "mid"
+  | "senior"
+  | "staff_plus"
+  | "manager"
+  | "director_plus";
 
 export interface ResumeSection {
   key: string;
@@ -76,6 +85,63 @@ export interface TailoredResumeOutput {
   score: number;
 }
 
+export interface ResumeWorkExperienceEntry {
+  company: string;
+  title: string;
+  location: string;
+  dates: string;
+  responsibilities: string;
+  achievements: string;
+  quantifiedImpact: string;
+}
+
+export interface ResumeProfileData {
+  mode: ResumeIntakeMode;
+  basicProfile: {
+    fullName: string;
+    currentTitle: string;
+    targetTitle: string;
+    location: string;
+    workAuthorization: string;
+    yearsExperience: string;
+    careerLevel: CareerLevel | "";
+  };
+  professionalSummary: string;
+  skills: string[];
+  workExperiences: ResumeWorkExperienceEntry[];
+  education: string[];
+  projects: string[];
+  certifications: string[];
+  awards: string[];
+  links: {
+    linkedIn: string;
+    github: string;
+    portfolio: string;
+  };
+  preferences: {
+    resumeStyle: string;
+    keywordEmphasis: string;
+    industryPreference: string;
+  };
+  notes: string;
+}
+
+export interface TargetRoleBriefData {
+  seniorityLevel: string;
+  employmentType: string;
+  workMode: string;
+  industryDomain: string;
+  salaryRange: string;
+  topRequiredSkills: string[];
+  preferredSkills: string[];
+  emphasizeKeywords: string[];
+  responsibilitiesSummary: string;
+  hiringPriorities: Array<"technical_depth" | "communication" | "leadership" | "execution" | "research" | "product_thinking">;
+  atsIntensity: string;
+  technicalIntensity: string;
+  recruiterNotes: string;
+}
+
 export interface AppUser {
   id: string;
   email: string;
@@ -105,8 +171,11 @@ export interface ResumeRecord {
   id: string;
   userId: string;
   title: string;
+  intakeMode: ResumeIntakeMode;
   originalText: string;
   parsed: ParsedResume;
+  profileCompleteness: number;
+  profileData: ResumeProfileData | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -119,6 +188,8 @@ export interface JobDescriptionRecord {
   location: string;
   description: string;
   keywords: string[];
+  briefCompleteness: number;
+  briefData: TargetRoleBriefData | null;
   createdAt: string;
   updatedAt: string;
 }

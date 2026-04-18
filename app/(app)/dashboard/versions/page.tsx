@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { GitCompareArrows, Layers3 } from "lucide-react";
+import { ArrowRight, GitCompareArrows, Layers3 } from "lucide-react";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { VersionCompare } from "@/components/dashboard/version-compare";
+import { WorkflowStepper } from "@/components/dashboard/workflow-stepper";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -10,6 +11,7 @@ import { StatusBanner } from "@/components/ui/status-banner";
 import { getSessionIdentity } from "@/lib/auth";
 import { hasFeatureAccess } from "@/lib/billing/guards";
 import { getAppSnapshot } from "@/lib/data";
+import { getWorkflowAction, getWorkflowState } from "@/lib/onboarding";
 import { formatDate } from "@/lib/utils";
 
 function queryValue(params: Record<string, string | string[] | undefined>, key: string) {
@@ -38,6 +40,8 @@ export default async function VersionsPage({
     snapshot.resumeVersions[0];
   const canCompare = hasFeatureAccess(snapshot.subscription?.plan, "version_compare");
   const canExport = hasFeatureAccess(snapshot.subscription?.plan, "priority_export");
+  const workflow = getWorkflowState(snapshot);
+  const nextAction = getWorkflowAction(snapshot);
 
   return (
     <div className="space-y-8">
@@ -53,6 +57,8 @@ export default async function VersionsPage({
           tone="success"
         />
       ) : null}
+
+      <WorkflowStepper compact currentStepId="versions" workflow={workflow} />
 
       {snapshot.resumeVersions.length > 0 ? (
         <>
@@ -175,6 +181,23 @@ export default async function VersionsPage({
           title="No resume versions saved yet"
         />
       )}
+
+      <Card className="bg-gradient-to-br from-slate-50 to-white">
+        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Next best action</p>
+        <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
+          {nextAction.title}
+        </h2>
+        <p className="mt-3 text-sm leading-7 text-slate-600">{nextAction.description}</p>
+        <div className="mt-5">
+          <Link
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-slate-900 px-5 text-sm font-medium text-white"
+            href={nextAction.href}
+          >
+            {nextAction.cta}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </Card>
     </div>
   );
 }

@@ -25,9 +25,20 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const onboarding = getOnboardingProgress(snapshot);
 
   return (
-    <div className="min-h-screen bg-transparent lg:grid lg:grid-cols-[280px_1fr]">
-      <DashboardSidebar onboarding={onboarding} user={snapshot.user} />
-      <main className="min-w-0 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">{children}</main>
+    <div className="relative min-h-screen overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="ambient-glow ambient-glow-a" />
+        <div className="ambient-glow ambient-glow-b" />
+        <div className="ambient-grid" />
+      </div>
+      <div className="relative lg:grid lg:grid-cols-[280px_1fr]">
+        <DashboardSidebar onboarding={onboarding} user={snapshot.user} />
+        <main className="min-w-0 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+          <div className="rounded-[32px] border border-white/40 bg-white/70 p-4 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.35)] backdrop-blur-sm sm:p-6 lg:p-8">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

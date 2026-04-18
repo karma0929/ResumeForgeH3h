@@ -3,6 +3,7 @@ import { ArrowRight, WandSparkles } from "lucide-react";
 import { UsageLimitPrompt } from "@/components/billing/usage-limit-prompt";
 import { UsageMeterCard } from "@/components/billing/usage-meter-card";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { WorkflowStepper } from "@/components/dashboard/workflow-stepper";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -16,6 +17,7 @@ import {
 import { getSessionIdentity } from "@/lib/auth";
 import { hasFeatureAccess } from "@/lib/billing/guards";
 import { getAppSnapshot } from "@/lib/data";
+import { getWorkflowAction, getWorkflowState } from "@/lib/onboarding";
 import { getUsageRemaining } from "@/lib/usage";
 import type { RewriteMode, RewriteResult, TailoredResumeOutput } from "@/lib/types";
 
@@ -108,6 +110,8 @@ export default async function TailoringPage({
     snapshot.usage,
     "bullet_rewrite",
   );
+  const workflow = getWorkflowState(snapshot);
+  const nextAction = getWorkflowAction(snapshot);
 
   return (
     <div className="space-y-8">
@@ -147,6 +151,8 @@ export default async function TailoringPage({
           tone="success"
         />
       ) : null}
+
+      <WorkflowStepper compact currentStepId="tailored" workflow={workflow} />
 
       {resume && jobDescription ? (
         <>
@@ -387,6 +393,23 @@ export default async function TailoringPage({
           title="Tailoring workspace is waiting on source material"
         />
       )}
+
+      <Card className="bg-gradient-to-br from-slate-50 to-white">
+        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Next best action</p>
+        <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
+          {nextAction.title}
+        </h2>
+        <p className="mt-3 text-sm leading-7 text-slate-600">{nextAction.description}</p>
+        <div className="mt-5">
+          <Link
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-slate-900 px-5 text-sm font-medium text-white"
+            href={nextAction.href}
+          >
+            {nextAction.cta}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </Card>
     </div>
   );
 }

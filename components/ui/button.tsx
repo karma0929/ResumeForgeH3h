@@ -6,11 +6,11 @@ type ButtonSize = "sm" | "md" | "lg";
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-slate-900 text-white hover:bg-slate-800 shadow-sm shadow-slate-200",
+    "bg-slate-900 text-white hover:bg-slate-800 shadow-sm shadow-slate-300 hover:shadow-slate-400",
   secondary:
     "bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-100",
   ghost: "bg-transparent text-slate-700 hover:bg-slate-100",
-  outline: "border border-slate-200 bg-white text-slate-900 hover:bg-slate-50",
+  outline: "border border-slate-200 bg-white text-slate-900 hover:bg-slate-50 shadow-sm shadow-slate-100",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -35,7 +35,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center rounded-full font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+        "inline-flex items-center justify-center rounded-full font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60",
         variantClasses[variant],
         sizeClasses[size],
         className,
