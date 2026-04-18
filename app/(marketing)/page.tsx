@@ -1,237 +1,314 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  BriefcaseBusiness,
   CheckCircle2,
+  Compass,
   FileSearch,
   Layers3,
-  Search,
   Sparkles,
   Target,
-  Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
-const features = [
+const audiences = [
   {
-    title: "ATS scoring built for real job descriptions",
-    description:
-      "Measure ATS readiness, clarity, impact, and job fit against the roles U.S. employers are actually posting.",
-    icon: Search,
+    title: "International students in the U.S.",
+    description: "Translate projects, campus work, and internships into U.S.-style hiring language.",
   },
   {
-    title: "Rewrite weak bullets into stronger evidence",
-    description:
-      "Turn vague responsibilities into recruiter-friendly bullets with clearer technical detail, outcomes, and ownership.",
+    title: "Early-career applicants",
+    description: "Turn generic bullet lists into measurable, role-aligned evidence.",
+  },
+  {
+    title: "Technical job seekers",
+    description: "Run a repeatable workflow for tailoring across multiple applications.",
+  },
+];
+
+const howItWorks = [
+  {
+    title: "Define the target role",
+    description: "Capture role context, company signals, and job description priorities first.",
+  },
+  {
+    title: "Build your profile baseline",
+    description: "Start from an existing resume or use guided intake to fill missing foundations.",
+  },
+  {
+    title: "Analyze ATS and job fit",
+    description: "Surface missing keywords, weak signals, and the highest-leverage improvement areas.",
+  },
+  {
+    title: "Generate and compare versions",
+    description: "Create role-specific drafts, compare outcomes, and export with confidence.",
+  },
+];
+
+const capabilities = [
+  {
+    icon: Compass,
+    title: "Build a stronger base resume",
+    body: "Use quick or guided intake to structure summary, skills, work history, and results without overwhelm.",
+  },
+  {
+    icon: FileSearch,
+    title: "Understand ATS and job fit",
+    body: "Get clear scoring across ATS readiness, clarity, impact, and role alignment from one workspace.",
+  },
+  {
     icon: Sparkles,
+    title: "Tailor intentionally, not randomly",
+    body: "Rewrite weak bullets by mode and generate targeted versions against a specific job description.",
   },
   {
-    title: "Generate tailored versions for each application",
-    description:
-      "Create role-specific resume cuts, compare them side by side, and export polished drafts when you are ready to apply.",
     icon: Layers3,
+    title: "Compare versions before exporting",
+    body: "Review edits side by side and ship the strongest version for each application cycle.",
   },
 ];
 
-const audience = [
-  "International students translating campus, internship, and project experience into U.S.-style resume language",
-  "Early-career applicants who need sharper positioning for software, data, and product-adjacent roles",
-  "Tech job seekers applying at volume who need a repeatable workflow for tailoring without starting from scratch",
-];
-
-const beforeAfter = [
-  {
-    label: "Before",
-    bullet:
-      "Built dashboard for advisors and answered support requests for students.",
-    note:
-      "Reads generic, undersells scope, and does not communicate measurable impact.",
-  },
-  {
-    label: "After",
-    bullet:
-      "Built an internal advisor dashboard that improved visibility into student request volume, helping the support team triage issues faster across campus operations.",
-    note:
-      "Adds product context, operational value, and clearer evidence of ownership.",
-  },
-];
-
-const proofPoints = [
-  "Built for U.S. job seekers competing on ATS screens and recruiter skim time",
-  "Useful for internships, new-grad roles, and early-career full-time applications",
-  "Structured service layer ready for live AI, billing, and export workflows",
+const differentiators = [
+  "Role-aware workflow: every recommendation is anchored to a target role brief.",
+  "Signal-first analysis: focus on what recruiters and ATS systems scan first.",
+  "Iterative refinement loop: baseline, analysis, tailored output, comparison, export.",
 ];
 
 export default function HomePage() {
   return (
-    <div className="pb-20">
-      <section className="mx-auto grid w-full max-w-7xl gap-12 px-6 py-16 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-24">
-        <div>
-          <Badge>Built for U.S. resumes, ATS screens, and recruiter skim time</Badge>
-          <h1 className="mt-8 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 lg:text-7xl">
-            Turn one resume into a sharper application system.
+    <div className="relative overflow-hidden pb-24">
+      <div className="ambient-glow ambient-glow-a pointer-events-none" />
+      <div className="ambient-glow ambient-glow-b pointer-events-none" />
+      <div className="ambient-grid pointer-events-none" />
+
+      <section className="relative mx-auto grid w-full max-w-7xl gap-12 px-6 pt-20 lg:grid-cols-[1fr_0.98fr] lg:px-8 lg:pt-24">
+        <div className="section-rise" style={{ animationDelay: "0ms" }}>
+          <Badge className="bg-white text-slate-700">
+            Premium AI resume workflow for U.S. job seekers
+          </Badge>
+          <h1 className="mt-8 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">
+            Build role-ready resumes with a guided system, not guesswork.
           </h1>
-          <p className="mt-8 max-w-3xl text-lg leading-8 text-slate-600">
-            ResumeForge helps international students, early-career applicants, and tech job seekers
-            turn a generic resume into role-specific versions with stronger bullets, cleaner ATS
-            signals, and better story fit for U.S. employers.
+          <p className="mt-8 max-w-2xl text-lg leading-8 text-slate-600">
+            ResumeForge helps you move from generic resume text to targeted, higher-conviction
+            applications through structured intake, ATS-aware analysis, and versioned tailoring.
           </p>
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
             <Link
-              className="inline-flex h-12 items-center justify-center rounded-full bg-slate-900 px-6 text-sm font-medium text-white"
+              className="inline-flex h-12 items-center justify-center rounded-full bg-slate-950 px-6 text-sm font-medium text-white transition-transform duration-300 hover:-translate-y-0.5"
               href="/signup"
             >
               Start free
             </Link>
             <Link
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-6 text-sm font-medium text-slate-800"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-6 text-sm font-medium text-slate-800 transition-colors duration-300 hover:bg-slate-50"
               href="/pricing"
             >
               View pricing
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="mt-12 grid gap-4 sm:grid-cols-3">
-            {[
-              ["Analyze faster", "Paste a resume and JD to surface missing signals in minutes."],
-              ["Tailor intentionally", "Rewrite bullets and generate versions without losing your baseline."],
-              ["Apply with confidence", "Export recruiter-ready drafts once the story is tight."],
-            ].map(([title, detail]) => (
+          <div className="mt-10 grid gap-3 sm:grid-cols-3">
+            {["ATS-aware", "Role-specific", "Versioned workflow"].map((item) => (
               <div
-                key={title}
-                className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm shadow-slate-200/60"
+                className="rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 text-sm text-slate-700"
+                key={item}
               >
-                <p className="text-sm font-semibold text-slate-900">{title}</p>
-                <p className="mt-2 text-sm leading-7 text-slate-600">{detail}</p>
+                {item}
               </div>
             ))}
           </div>
         </div>
 
-        <Card className="overflow-hidden bg-slate-950 p-0 text-white">
-          <div className="border-b border-white/10 px-8 py-6">
-            <p className="text-sm text-slate-300">What the product actually does</p>
-            <h2 className="mt-2 text-2xl font-semibold">A tighter loop for every application</h2>
-          </div>
-          <div className="space-y-5 px-8 py-8">
-            {[
-              "Upload your base resume and parse it into readable sections.",
-              "Paste a target job description and extract keywords, seniority signals, and must-haves.",
-              "Run ATS analysis, rewrite bullets, generate a tailored draft, and save versions in one workspace.",
-            ].map((item, index) => (
-              <div key={item} className="flex gap-4">
-                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/10 text-sm font-semibold">
-                  0{index + 1}
+        <div className="relative min-h-[530px] section-rise" style={{ animationDelay: "120ms" }}>
+          <div className="hero-float-a absolute left-0 right-8 top-6 rounded-[34px] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-[0_50px_90px_-50px_rgba(15,23,42,0.45)]">
+            <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-slate-500">
+              <span>Target role brief</span>
+              <span>Live profile</span>
+            </div>
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+              <p className="text-sm font-medium text-slate-900">Product Data Analyst · Hybrid</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Keywords surfaced: SQL, experimentation, stakeholder communication, dashboard ownership.
+              </p>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {[
+                ["ATS", "82"],
+                ["Clarity", "76"],
+                ["Job Fit", "79"],
+              ].map(([label, value]) => (
+                <div className="rounded-2xl border border-slate-200 bg-white p-3" key={label}>
+                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{label}</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-950">{value}</p>
                 </div>
-                <p className="text-sm leading-7 text-slate-200">{item}</p>
-              </div>
-            ))}
-            <div className="rounded-3xl bg-white/8 p-5">
-              <p className="text-sm font-medium text-white">Free tier for first proof, paid tiers for actual workflow</p>
-              <p className="mt-2 text-sm leading-7 text-slate-300">
-                Start with limited analysis and rewrites, then upgrade when you need tailored resume generation, comparison, and export-ready output.
+              ))}
+            </div>
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-900 p-4 text-white">
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Tailored rewrite</p>
+              <p className="mt-2 text-sm leading-6 text-slate-200">
+                Reframed project bullet to quantify workflow impact and highlight cross-functional ownership.
               </p>
             </div>
           </div>
-        </Card>
+
+          <div className="hero-float-b absolute bottom-10 right-0 w-[78%] rounded-[28px] border border-slate-200 bg-white/95 p-5 shadow-[0_40px_80px_-50px_rgba(15,23,42,0.5)]">
+            <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Version comparison</p>
+            <div className="mt-3 space-y-3 text-sm">
+              <div className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-rose-900">
+                Before: generic responsibilities
+              </div>
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-900">
+                After: quantified, role-aligned outcomes
+              </div>
+            </div>
+            <Link
+              className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-slate-900"
+              href="/signup"
+            >
+              Build your first tailored version
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
       </section>
 
-      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
-        <div className="grid gap-6 lg:grid-cols-3">
-          {features.map((feature) => {
-            const Icon = feature.icon;
+      <section className="relative mx-auto mt-20 w-full max-w-7xl px-6 lg:px-8" id="who-its-for">
+        <div className="section-rise rounded-[34px] border border-slate-200 bg-white/88 p-7 shadow-[0_30px_80px_-60px_rgba(15,23,42,0.45)] backdrop-blur-sm sm:p-8">
+          <div className="max-w-3xl">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Who it is for</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Built for candidates who need stronger positioning, not just prettier formatting.
+            </h2>
+          </div>
+          <div className="mt-7 grid gap-4 md:grid-cols-3">
+            {audiences.map((item) => (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5" key={item.title}>
+                <p className="text-base font-semibold text-slate-900">{item.title}</p>
+                <p className="mt-2 text-sm leading-7 text-slate-600">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="relative mx-auto mt-24 w-full max-w-7xl px-6 lg:px-8" id="how-it-works">
+        <div className="section-rise">
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">How it works</p>
+          <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+            One guided sequence from role definition to export-ready version.
+          </h2>
+        </div>
+        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {howItWorks.map((item, index) => (
+            <Card className="section-rise bg-white/88" key={item.title}>
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Step 0{index + 1}</p>
+              <h3 className="mt-3 text-lg font-semibold text-slate-950">{item.title}</h3>
+              <p className="mt-3 text-sm leading-7 text-slate-600">{item.description}</p>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section className="relative mx-auto mt-24 w-full max-w-7xl px-6 lg:px-8" id="capabilities">
+        <div className="section-rise">
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Product capabilities</p>
+          <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+            Clear modules for every stage of the application workflow.
+          </h2>
+        </div>
+        <div className="mt-10 grid gap-5 lg:grid-cols-2">
+          {capabilities.map((item) => {
+            const Icon = item.icon;
             return (
-              <Card key={feature.title}>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
-                  <Icon className="h-5 w-5" />
+              <Card className="section-rise bg-gradient-to-b from-white to-slate-50" key={item.title}>
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <h3 className="text-xl font-semibold text-slate-950">{item.title}</h3>
                 </div>
-                <h3 className="mt-6 text-xl font-semibold text-slate-950">{feature.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{feature.description}</p>
+                <p className="mt-4 text-sm leading-7 text-slate-600">{item.body}</p>
               </Card>
             );
           })}
         </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-12 lg:grid-cols-[0.92fr_1.08fr] lg:px-8">
-        <Card className="bg-slate-50">
-          <div className="flex items-center gap-3 text-slate-900">
-            <FileSearch className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">Before and after a better rewrite</h2>
+      <section className="relative mx-auto mt-24 grid w-full max-w-7xl gap-7 px-6 lg:grid-cols-[0.96fr_1.04fr] lg:px-8">
+        <Card className="section-rise bg-slate-950 text-white">
+          <div className="flex items-center gap-3">
+            <Target className="h-5 w-5 text-sky-300" />
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Guided workflow</p>
           </div>
-          <div className="mt-6 space-y-4">
-            {beforeAfter.map((item) => (
-              <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
-                <p className="mt-3 text-sm font-medium leading-7 text-slate-900">{item.bullet}</p>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{item.note}</p>
-              </div>
+          <h3 className="mt-4 text-2xl font-semibold tracking-tight">
+            ResumeForge behaves like a workshop, not a blank editor.
+          </h3>
+          <p className="mt-4 text-sm leading-8 text-slate-300">
+            You always know your current step, what is complete, what is missing, and what to do next.
+            Optional fields stay available behind progressive disclosure so advanced users get depth without adding noise.
+          </p>
+          <ul className="mt-6 space-y-3">
+            {[
+              "Step-by-step intake with draft continuity",
+              "Data-driven progress and next-step prompts",
+              "Role-aware analysis before tailoring",
+            ].map((item) => (
+              <li className="flex items-start gap-2 text-sm text-slate-200" key={item}>
+                <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-300" />
+                {item}
+              </li>
             ))}
-          </div>
+          </ul>
         </Card>
 
-        <Card>
-          <div className="flex items-center gap-3 text-slate-900">
-            <Target className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">Why U.S. job seekers use it</h2>
+        <Card className="section-rise bg-white/92">
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-slate-700" />
+            <h3 className="text-xl font-semibold text-slate-950">Why it feels different</h3>
           </div>
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {proofPoints.map((item) => (
-              <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
+          <div className="mt-5 space-y-3">
+            {differentiators.map((item) => (
+              <div
+                className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm leading-7 text-slate-700"
+                key={item}
+              >
                 {item}
               </div>
             ))}
-            <div className="rounded-2xl border border-slate-900 bg-slate-900 p-5 text-white md:col-span-2">
-              <p className="text-sm font-medium">Stronger positioning matters more than more applications.</p>
-              <p className="mt-2 text-sm leading-7 text-slate-300">
-                ResumeForge is designed to help you tighten the quality of each submission, especially when your experience needs clearer framing for U.S. hiring expectations.
-              </p>
-            </div>
           </div>
         </Card>
       </section>
 
-      <section className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-4 lg:grid-cols-[0.95fr_1.05fr] lg:px-8">
-        <Card>
-          <div className="flex items-center gap-3">
-            <Users className="h-5 w-5 text-slate-900" />
-            <h2 className="text-xl font-semibold text-slate-950">Who this is for</h2>
+      <section className="relative mx-auto mt-24 w-full max-w-7xl px-6 lg:px-8">
+        <div className="section-rise overflow-hidden rounded-[34px] border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-8 text-white shadow-[0_40px_90px_-50px_rgba(2,6,23,0.8)] sm:p-10">
+          <div className="max-w-3xl">
+            <p className="text-xs uppercase tracking-[0.18em] text-sky-300">Start your first cycle</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+              Build your first tailored version in one guided session.
+            </h2>
+            <p className="mt-4 text-sm leading-8 text-slate-300">
+              Define a role, upload your baseline resume, run ATS analysis, and generate a stronger draft
+              before your next application deadline.
+            </p>
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+              <Link
+                className="inline-flex h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-medium text-slate-900 transition-transform duration-300 hover:-translate-y-0.5"
+                href="/signup"
+              >
+                Start free
+              </Link>
+              <Link
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 text-sm font-medium text-white transition-colors duration-300 hover:bg-white/10"
+                href="/pricing"
+              >
+                Compare plans
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
-          <div className="mt-6 space-y-4">
-            {audience.map((item) => (
-              <div key={item} className="flex gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
-                <p className="text-sm leading-7 text-slate-600">{item}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-slate-950 to-slate-800 text-white">
-          <div className="flex items-center gap-3">
-            <BriefcaseBusiness className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">Ready to tighten the next application?</h2>
-          </div>
-          <p className="mt-6 max-w-2xl text-sm leading-8 text-slate-300">
-            Start with one resume and one target role. See the missing keywords, improve the weakest bullets, and move into a tailored draft without rebuilding your resume from scratch.
-          </p>
-          <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-            <Link
-              className="inline-flex h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-medium text-slate-900"
-              href="/signup"
-            >
-              Create your workspace
-            </Link>
-            <Link
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 text-sm font-medium text-white"
-              href="/pricing"
-            >
-              Compare plans
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </Card>
+          <div className="hero-soft-light pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full" />
+        </div>
       </section>
     </div>
   );

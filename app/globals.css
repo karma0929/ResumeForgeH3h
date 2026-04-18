@@ -87,6 +87,23 @@ select:focus-visible {
   opacity: 0.2;
 }
 
+.section-rise {
+  animation: section-rise-in 720ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.hero-float-a {
+  animation: hero-float-a 9s ease-in-out infinite;
+}
+
+.hero-float-b {
+  animation: hero-float-b 12s ease-in-out infinite;
+}
+
+.hero-soft-light {
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.26), rgba(56, 189, 248, 0));
+  filter: blur(2px);
+}
+
 @keyframes ambient-drift-a {
   0% {
     transform: translate3d(0, 0, 0);
@@ -102,5 +119,50 @@ select:focus-visible {
   }
   100% {
     transform: translate3d(-24px, -14px, 0);
+  }
+}
+
+@keyframes section-rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes hero-float-a {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -8px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes hero-float-b {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, 6px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-glow-a,
+  .ambient-glow-b,
+  .section-rise,
+  .hero-float-a,
+  .hero-float-b {
+    animation: none !important;
   }
 }
