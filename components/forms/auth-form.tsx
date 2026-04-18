@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
@@ -27,7 +26,6 @@ export function AuthForm({
   nextPath?: string | null;
   includeName?: boolean;
 }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [localError, setLocalError] = useState(error ?? null);
   const safeNextPath = sanitizePostAuthRedirectPath(nextPath);
@@ -42,8 +40,7 @@ export function AuthForm({
         const result = await action(formData);
 
         if (result.success) {
-          router.push(result.redirectTo);
-          router.refresh();
+          window.location.assign(result.redirectTo);
           return;
         }
 
