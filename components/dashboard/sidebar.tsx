@@ -18,6 +18,14 @@ const navItems = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
+function isActivePath(pathname: string, href: string) {
+  if (href === "/dashboard") {
+    return pathname === href;
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function DashboardSidebar({
   user,
   onboarding,
@@ -28,86 +36,95 @@ export function DashboardSidebar({
   const pathname = usePathname();
 
   return (
-    <aside className="border-b border-slate-200 bg-white lg:min-h-screen lg:border-b-0 lg:border-r">
+    <aside className="border-b border-slate-200 bg-white lg:min-h-screen lg:border-b-0 lg:border-r lg:bg-slate-50/50">
       <div className="flex flex-col gap-5 px-4 py-4 sm:px-5 sm:py-5 lg:sticky lg:top-0 lg:h-screen lg:max-w-xs lg:px-5 lg:py-6">
-      <Link className="flex items-center gap-3 text-slate-950" href="/dashboard">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
-          <Sparkles className="h-5 w-5" />
-        </span>
-        <div>
-          <p className="text-sm font-semibold">ResumeForge</p>
-          <p className="text-xs text-slate-500">AI resume workspace</p>
+        <Link className="flex items-center gap-3 text-slate-950" href="/dashboard">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
+            <Sparkles className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">ResumeForge</p>
+            <p className="text-xs text-slate-500">AI resume workspace</p>
+          </div>
+        </Link>
+
+        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm font-semibold text-slate-900">{user.name}</p>
+          <p className="text-sm text-slate-600">{user.targetRole}</p>
+          <p className="mt-2 text-xs text-slate-500">{user.email}</p>
         </div>
-      </Link>
 
-      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm font-semibold text-slate-900">{user.name}</p>
-        <p className="text-sm text-slate-600">{user.targetRole}</p>
-        <p className="mt-2 text-xs text-slate-500">{user.email}</p>
-      </div>
-
-      {!onboarding.isComplete ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Setup</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">
-                {onboarding.completed}/{onboarding.total} complete
-              </p>
+        {!onboarding.isComplete ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Setup</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {onboarding.completed}/{onboarding.total} complete
+                </p>
+              </div>
+              <span className="text-xs font-medium text-slate-600">{onboarding.percent}%</span>
             </div>
-            <span className="text-xs font-medium text-slate-600">{onboarding.percent}%</span>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-slate-900 transition-[width]"
+                style={{ width: `${onboarding.percent}%` }}
+              />
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Finish the first four steps to unlock the fastest application workflow.
+            </p>
           </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full bg-slate-900 transition-[width]"
-              style={{ width: `${onboarding.percent}%` }}
-            />
-          </div>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
-            Finish the first four steps to unlock the fastest application workflow.
-          </p>
-        </div>
-      ) : null}
-
-      <nav className="flex gap-2 overflow-x-auto pb-1 lg:flex-1 lg:flex-col lg:overflow-visible">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              className={cn(
-                "flex min-w-max items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors",
-                active
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-700 hover:bg-slate-100",
-              )}
-              href={item.href}
-            >
-              <Icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          );
-        })}
-        {user.role === "ADMIN" ? (
-          <Link
-            className={cn(
-              "flex min-w-max items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors",
-              pathname === "/admin" ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100",
-            )}
-            href="/admin"
-          >
-            <Shield className="h-4 w-4" />
-            Admin
-          </Link>
         ) : null}
-      </nav>
 
-      <form action={logoutAction}>
-        <button className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700">
-          Log out
-        </button>
-      </form>
+        <nav className="flex gap-2 overflow-x-auto pb-1 lg:flex-1 lg:flex-col lg:overflow-visible">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActivePath(pathname, item.href);
+            return (
+              <Link
+                aria-current={active ? "page" : undefined}
+                key={item.href}
+                className={cn(
+                  "flex min-w-max items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors",
+                  active
+                    ? "border-sky-200 bg-sky-50 text-sky-900 shadow-sm"
+                    : "border-transparent text-slate-700 hover:border-slate-200 hover:bg-white hover:text-slate-900",
+                )}
+                href={item.href}
+              >
+                <Icon className={cn("h-4 w-4", active ? "text-sky-700" : "text-slate-500")} />
+                {item.label}
+              </Link>
+            );
+          })}
+          {user.role === "ADMIN" ? (
+            <Link
+              aria-current={isActivePath(pathname, "/admin") ? "page" : undefined}
+              className={cn(
+                "flex min-w-max items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors",
+                isActivePath(pathname, "/admin")
+                  ? "border-sky-200 bg-sky-50 text-sky-900 shadow-sm"
+                  : "border-transparent text-slate-700 hover:border-slate-200 hover:bg-white hover:text-slate-900",
+              )}
+              href="/admin"
+            >
+              <Shield
+                className={cn(
+                  "h-4 w-4",
+                  isActivePath(pathname, "/admin") ? "text-sky-700" : "text-slate-500",
+                )}
+              />
+              Admin
+            </Link>
+          ) : null}
+        </nav>
+
+        <form action={logoutAction}>
+          <button className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700">
+            Log out
+          </button>
+        </form>
       </div>
     </aside>
   );
