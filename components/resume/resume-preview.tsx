@@ -20,6 +20,24 @@ function templateClasses(templateId: ResumeRenderModel["templateId"]) {
     };
   }
 
+  if (templateId === "executive_leadership") {
+    return {
+      shell: "border-slate-300 bg-white shadow-[0_32px_92px_-58px_rgba(17,24,39,0.45)]",
+      heading: "text-slate-900 border-slate-300",
+      section: "border-slate-200",
+      bullet: "text-slate-700",
+    };
+  }
+
+  if (templateId === "minimal_bilingual") {
+    return {
+      shell: "border-slate-200 bg-white shadow-[0_22px_62px_-48px_rgba(15,23,42,0.35)]",
+      heading: "text-slate-900 border-slate-200",
+      section: "border-slate-100",
+      bullet: "text-slate-700",
+    };
+  }
+
   return {
     shell: "border-slate-300 bg-white shadow-[0_26px_70px_-48px_rgba(15,23,42,0.45)]",
     heading: "text-slate-900 border-slate-300",
@@ -32,22 +50,29 @@ export function ResumePreview({ model }: { model: ResumeRenderModel }) {
   const theme = templateClasses(model.templateId);
   const isTechnical = model.templateId === "technical_product";
   const isModern = model.templateId === "modern_professional";
+  const isExecutive = model.templateId === "executive_leadership";
+  const isMinimal = model.templateId === "minimal_bilingual";
   const primarySections = isTechnical
     ? model.sections.filter((section) => !["skills", "projects", "certifications", "links"].includes(section.key))
     : isModern
       ? model.sections.filter((section) => !["skills", "certifications", "links"].includes(section.key))
+      : isExecutive
+        ? model.sections.filter((section) => !["skills", "links"].includes(section.key))
     : model.sections;
   const sideSections = isTechnical
     ? model.sections.filter((section) => ["skills", "projects", "certifications", "links"].includes(section.key))
     : isModern
       ? model.sections.filter((section) => ["skills", "certifications", "links"].includes(section.key))
+      : isExecutive
+        ? model.sections.filter((section) => ["skills", "links"].includes(section.key))
     : [];
 
   return (
     <article className={cn("rounded-[28px] border p-7", theme.shell)}>
       {isModern ? <div className="mb-5 h-1.5 rounded-full bg-gradient-to-r from-sky-600 via-cyan-500 to-emerald-500" /> : null}
+      {isExecutive ? <div className="mb-5 h-1 rounded-full bg-slate-900/80" /> : null}
       <header className={cn("border-b pb-4", theme.heading)}>
-        <h2 className="text-[1.65rem] font-semibold tracking-tight">{model.name}</h2>
+        <h2 className={cn("text-[1.65rem] tracking-tight", isMinimal ? "font-medium" : "font-semibold")}>{model.name}</h2>
         {model.headline ? <p className="mt-2 text-sm text-slate-600">{model.headline}</p> : null}
         {model.contactLine ? <p className="mt-2 text-xs text-slate-500">{model.contactLine}</p> : null}
       </header>
@@ -68,6 +93,8 @@ export function ResumePreview({ model }: { model: ResumeRenderModel }) {
             ? "grid gap-6 lg:grid-cols-[1.15fr_0.85fr]"
             : isModern
               ? "grid gap-6 lg:grid-cols-[1.2fr_0.8fr]"
+              : isExecutive
+                ? "grid gap-6 lg:grid-cols-[1.22fr_0.78fr]"
               : "space-y-5",
         )}
       >
@@ -93,13 +120,15 @@ export function ResumePreview({ model }: { model: ResumeRenderModel }) {
           ))}
         </div>
 
-        {isTechnical || isModern ? (
+        {isTechnical || isModern || isExecutive ? (
           <aside
             className={cn(
               "space-y-5 rounded-2xl p-4",
               isTechnical
                 ? "border border-sky-100 bg-white/70"
-                : "border border-slate-200 bg-gradient-to-b from-slate-50 to-white",
+                : isExecutive
+                  ? "border border-slate-200 bg-slate-50/70"
+                  : "border border-slate-200 bg-gradient-to-b from-slate-50 to-white",
             )}
           >
             {sideSections.map((section) => (

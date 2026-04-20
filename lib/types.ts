@@ -31,7 +31,9 @@ export type ResumeOutputLanguage = "en" | "zh";
 export type ResumeTemplateId =
   | "classic_ats"
   | "modern_professional"
-  | "technical_product";
+  | "technical_product"
+  | "executive_leadership"
+  | "minimal_bilingual";
 
 export interface ResumeSection {
   key: string;

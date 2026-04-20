@@ -11,6 +11,8 @@ export interface ResumeTemplateDefinition {
   id: ResumeTemplateId;
   name: { en: string; zh: string };
   description: { en: string; zh: string };
+  useCase: { en: string; zh: string };
+  tags: Array<{ en: string; zh: string }>;
 }
 
 export const RESUME_TEMPLATES: ResumeTemplateDefinition[] = [
@@ -21,6 +23,14 @@ export const RESUME_TEMPLATES: ResumeTemplateDefinition[] = [
       en: "Minimal, highly readable, and recruiter-friendly.",
       zh: "简洁高可读，适配主流 ATS 与招聘筛选。",
     },
+    useCase: {
+      en: "Default for broad job applications and conservative recruiting pipelines.",
+      zh: "适合大多数岗位投递与偏保守的招聘流程。",
+    },
+    tags: [
+      { en: "ATS-safe", zh: "ATS 友好" },
+      { en: "Conservative", zh: "稳健风格" },
+    ],
   },
   {
     id: "modern_professional",
@@ -29,6 +39,14 @@ export const RESUME_TEMPLATES: ResumeTemplateDefinition[] = [
       en: "Stronger visual hierarchy while staying application-safe.",
       zh: "更强视觉层级，同时保持投递稳健。",
     },
+    useCase: {
+      en: "Best for polished product, business, and cross-functional roles.",
+      zh: "适合产品、业务与跨团队协作岗位，风格更精致。",
+    },
+    tags: [
+      { en: "Modern", zh: "现代风格" },
+      { en: "Balanced", zh: "均衡表达" },
+    ],
   },
   {
     id: "technical_product",
@@ -37,6 +55,46 @@ export const RESUME_TEMPLATES: ResumeTemplateDefinition[] = [
       en: "Highlights technical depth, projects, and execution impact.",
       zh: "突出技术深度、项目能力与产出影响。",
     },
+    useCase: {
+      en: "Ideal for engineering, data, and technical product applicants.",
+      zh: "适合工程、数据与技术产品岗位求职者。",
+    },
+    tags: [
+      { en: "Technical", zh: "技术导向" },
+      { en: "Project-heavy", zh: "项目突出" },
+    ],
+  },
+  {
+    id: "executive_leadership",
+    name: { en: "Executive / leadership", zh: "管理与领导力导向" },
+    description: {
+      en: "Highlights strategy, ownership scope, and cross-functional influence.",
+      zh: "突出战略视角、负责范围与跨团队领导力。",
+    },
+    useCase: {
+      en: "Designed for leadership narratives and impact-at-scale storytelling.",
+      zh: "适合管理层叙事与大范围影响力表达。",
+    },
+    tags: [
+      { en: "Leadership", zh: "领导力" },
+      { en: "Executive", zh: "管理层" },
+    ],
+  },
+  {
+    id: "minimal_bilingual",
+    name: { en: "Minimal bilingual-friendly", zh: "极简双语友好" },
+    description: {
+      en: "Balanced spacing and typography for English/Chinese readability.",
+      zh: "针对中英文混合阅读优化的极简版式。",
+    },
+    useCase: {
+      en: "Great for bilingual applications and mixed Chinese/English portfolios.",
+      zh: "适合中英文双语投递与混合语言履历。",
+    },
+    tags: [
+      { en: "Bilingual", zh: "双语友好" },
+      { en: "Minimal", zh: "极简布局" },
+    ],
   },
 ];
 
@@ -90,7 +148,9 @@ export function isResumeTemplateId(value: string | null | undefined): value is R
   return (
     value === "classic_ats" ||
     value === "modern_professional" ||
-    value === "technical_product"
+    value === "technical_product" ||
+    value === "executive_leadership" ||
+    value === "minimal_bilingual"
   );
 }
 

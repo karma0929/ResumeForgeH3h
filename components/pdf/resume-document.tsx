@@ -56,7 +56,13 @@ function createStyles(model: ResumeRenderModel) {
   const baseFont = "ResumeCJK";
   const technical = model.templateId === "technical_product";
   const modern = model.templateId === "modern_professional";
-  const twoColumn = technical || modern;
+  const executive = model.templateId === "executive_leadership";
+  const minimal = model.templateId === "minimal_bilingual";
+  const twoColumn = technical || modern || executive;
+  const mainBasis = technical ? "66%" : modern ? "70%" : executive ? "72%" : "100%";
+  const sideBasis = technical ? "34%" : modern ? "30%" : "28%";
+  const dividerColor = modern ? "#bfdbfe" : executive ? "#d4d4d8" : "#e2e8f0";
+  const sectionColor = modern ? "#0c4a6e" : executive ? "#1f2937" : "#334155";
 
   return StyleSheet.create({
     page: {
@@ -67,11 +73,11 @@ function createStyles(model: ResumeRenderModel) {
       color: "#0f172a",
       fontFamily: baseFont,
       lineHeight: model.language === "zh" ? 1.58 : 1.46,
-      backgroundColor: "#ffffff",
+      backgroundColor: minimal ? "#fcfdff" : "#ffffff",
     },
     header: {
       borderBottomWidth: 1,
-      borderBottomColor: modern ? "#93c5fd" : "#cbd5e1",
+      borderBottomColor: modern ? "#93c5fd" : executive ? "#d4d4d8" : "#cbd5e1",
       paddingBottom: 10,
       marginBottom: 12,
     },
@@ -85,7 +91,7 @@ function createStyles(model: ResumeRenderModel) {
     title: {
       fontSize: 21,
       fontFamily: baseFont,
-      fontWeight: 700,
+      fontWeight: minimal ? 500 : 700,
       letterSpacing: 0.2,
     },
     headline: {
@@ -124,14 +130,14 @@ function createStyles(model: ResumeRenderModel) {
     },
     mainColumn: {
       flexGrow: 1,
-      flexBasis: technical ? "68%" : modern ? "70%" : "100%",
+      flexBasis: mainBasis,
     },
     sideColumn: {
       flexGrow: 0,
-      flexBasis: technical ? "32%" : "30%",
+      flexBasis: sideBasis,
       paddingLeft: 12,
       borderLeftWidth: 1,
-      borderLeftColor: modern ? "#bfdbfe" : "#e2e8f0",
+      borderLeftColor: dividerColor,
     },
     section: {
       marginBottom: 11,
@@ -143,7 +149,7 @@ function createStyles(model: ResumeRenderModel) {
       fontWeight: 700,
       letterSpacing: 1.1,
       textTransform: model.language === "zh" ? "none" : "uppercase",
-      color: modern ? "#0c4a6e" : "#334155",
+      color: sectionColor,
     },
     line: {
       marginBottom: 3,
@@ -160,7 +166,7 @@ function createStyles(model: ResumeRenderModel) {
       width: 8,
       fontFamily: baseFont,
       fontWeight: 700,
-      color: modern ? "#0369a1" : "#1f2937",
+      color: modern ? "#0369a1" : executive ? "#111827" : "#1f2937",
     },
     bulletText: {
       flex: 1,
@@ -189,7 +195,8 @@ export function ResumePdfDocument({
   const styles = createStyles(model);
   const technical = model.templateId === "technical_product";
   const modern = model.templateId === "modern_professional";
-  const twoColumn = technical || modern;
+  const executive = model.templateId === "executive_leadership";
+  const twoColumn = technical || modern || executive;
   const sideSections = technical
     ? model.sections.filter((section) =>
         ["skills", "projects", "certifications", "links"].includes(section.key),
@@ -198,6 +205,10 @@ export function ResumePdfDocument({
       ? model.sections.filter((section) =>
           ["skills", "certifications", "links"].includes(section.key),
         )
+      : executive
+        ? model.sections.filter((section) =>
+            ["skills", "awards", "links"].includes(section.key),
+          )
     : [];
   const mainSections = technical
     ? model.sections.filter(
@@ -207,6 +218,10 @@ export function ResumePdfDocument({
       ? model.sections.filter(
           (section) => !["skills", "certifications", "links"].includes(section.key),
         )
+      : executive
+        ? model.sections.filter(
+            (section) => !["skills", "awards", "links"].includes(section.key),
+          )
     : model.sections;
 
   return (

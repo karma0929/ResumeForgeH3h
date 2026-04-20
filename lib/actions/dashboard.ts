@@ -480,7 +480,7 @@ export async function saveResumeAction(formData: FormData) {
             { max: 40 },
             existingProfile?.preferences.templateId ?? "",
           ),
-          ["", "classic_ats", "modern_professional", "technical_product"] as const,
+          ["", "classic_ats", "modern_professional", "technical_product", "executive_leadership", "minimal_bilingual"] as const,
           "templateId",
         ),
       },

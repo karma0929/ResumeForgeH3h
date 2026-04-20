@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Download,
@@ -9,6 +8,7 @@ import {
 } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { ResumePreview } from "@/components/resume/resume-preview";
+import { TemplateGalleryField } from "@/components/resume/template-gallery-field";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -203,6 +203,7 @@ export default async function BuildFlowPage({
         profile.preferences.templateId),
   );
   const hasGeneratedDraft = Boolean(resume && resume.originalText.length >= 120 && originalVersion);
+  const optionalSteps = new Set([6, 8]);
   const completionByStep: Record<number, boolean> = {
     1: hasStep1,
     2: hasStep2,
@@ -217,9 +218,8 @@ export default async function BuildFlowPage({
   };
 
   const firstIncomplete = steps.find((stepItem) => !completionByStep[stepItem.number])?.number ?? 10;
-  const maxAccessibleStep = firstIncomplete;
-  const requestedStep = parseStep(queryValue(params, "step"), maxAccessibleStep);
-  const step = requestedStep > maxAccessibleStep ? maxAccessibleStep : requestedStep;
+  const requestedStep = parseStep(queryValue(params, "step"), firstIncomplete);
+  const step = requestedStep;
   const stepMeta = steps[step - 1];
   const completedCount = Object.values(completionByStep).filter(Boolean).length;
   const progressPercent = Math.round((completedCount / 10) * 100);
@@ -229,7 +229,6 @@ export default async function BuildFlowPage({
   const draftSaved = queryValue(params, "draft") === "1";
   const generated = queryValue(params, "generated") === "1";
   const error = queryValue(params, "error");
-  const stepLocked = requestedStep > maxAccessibleStep;
 
   const banner = error
     ? {
@@ -300,56 +299,127 @@ export default async function BuildFlowPage({
 
       {banner ? <StatusBanner {...banner} /> : null}
 
-      <Card className="border-slate-200 bg-white/92 p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{t("Build workflow", "创建流程")}</p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              {t(`Step ${step} of 10`, `第 ${step} / 10 步`)} — {stepMeta.title}
-            </h2>
-            <p className="mt-2 text-sm text-slate-600">{stepMeta.description}</p>
-          </div>
-          <Badge className="bg-white text-slate-700">{progressPercent}% {t("complete", "已完成")}</Badge>
-        </div>
-        <div className="mt-4">
-          <ProgressBar value={progressPercent} />
-        </div>
-        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-          {steps.map((item) => (
-            <div
-              className={`rounded-xl border px-3 py-2 text-xs ${
-                item.number === step
-                  ? "border-sky-200 bg-sky-50 text-sky-900"
-                  : completionByStep[item.number]
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                    : "border-slate-200 bg-slate-50 text-slate-600"
-              }`}
-              key={item.number}
-            >
-              <span className="font-medium">{t(`Step ${item.number}`, `第 ${item.number} 步`)}</span>
-              <p className="mt-1 line-clamp-1">{item.title}</p>
+      <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="space-y-4 xl:sticky xl:top-6 xl:h-fit">
+          <Card className="border-slate-200 bg-white/92 p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{t("Build workspace", "创建工作区")}</p>
+            <p className="mt-2 text-sm text-slate-700">
+              {t("Recommended next:", "推荐下一步：")}{" "}
+              <span className="font-medium text-slate-900">{steps[firstIncomplete - 1]?.title}</span>
+            </p>
+            <div className="mt-3">
+              <ProgressBar value={progressPercent} />
             </div>
-          ))}
-        </div>
-      </Card>
+            <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+              <span>{t("Completion", "完成度")}</span>
+              <span>{progressPercent}%</span>
+            </div>
 
-      {stepLocked ? (
-        <Card className="border-amber-200 bg-amber-50 p-5 text-amber-900">
-          <p className="flex items-center gap-2 text-sm font-semibold">
-            <AlertTriangle className="h-4 w-4" />
-            {t("Complete earlier steps first", "请先完成前序步骤")}
-          </p>
-          <Link
-            className="mt-3 inline-flex items-center gap-1 text-sm font-medium underline"
-            href={`/dashboard/flow/build?step=${maxAccessibleStep}`}
-          >
-            {t("Go to current step", "前往当前步骤")}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Card>
-      ) : null}
+            <div className="mt-4 space-y-2">
+              {steps.map((item) => (
+                <Link
+                  href={`/dashboard/flow/build?step=${item.number}`}
+                  className={`block rounded-xl border px-3 py-2 text-xs transition ${
+                    item.number === step
+                      ? "border-sky-300 bg-sky-50 text-sky-900"
+                      : completionByStep[item.number]
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white"
+                  }`}
+                  key={item.number}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{t(`Step ${item.number}`, `第 ${item.number} 步`)}</span>
+                    <div className="flex items-center gap-1">
+                      {item.number === firstIncomplete ? (
+                        <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                          {t("Next", "推荐")}
+                        </span>
+                      ) : null}
+                      {optionalSteps.has(item.number) ? (
+                        <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                          {t("Optional", "可选")}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <p className="mt-1 line-clamp-1">{item.title}</p>
+                </Link>
+              ))}
+            </div>
+          </Card>
 
-      {!stepLocked && step === 1 ? (
+          <Card className="border-slate-200 bg-white/92 p-4 text-sm">
+            <p className="font-medium text-slate-900">{t("Output settings", "输出设置")}</p>
+            <p className="mt-1 text-xs text-slate-600">
+              {t("Editable any time before generation.", "生成前可随时修改。")}
+            </p>
+            <div className="mt-3 space-y-1 text-xs text-slate-600">
+              <p>
+                {t("Language", "语言")}：{outputLanguage === "zh" ? "中文" : "English"}
+              </p>
+              <p>
+                {t("Template", "模板")}：
+                {(RESUME_TEMPLATES.find((item) => item.id === templateId)?.name[
+                  uiLanguage === "zh" ? "zh" : "en"
+                ]) ?? templateId}
+              </p>
+            </div>
+            <Link
+              className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-sky-700 hover:text-sky-800"
+              href="/dashboard/flow/build?step=8"
+            >
+              {t("Edit output settings", "编辑输出设置")}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </Card>
+
+          <Card className="border-slate-200 bg-white/92 p-4 text-sm">
+            <p className="font-medium text-slate-900">{t("Generation workspace", "生成工作台")}</p>
+            <p className="mt-1 text-xs text-slate-600">
+              {t(
+                "Jump to any section, update content, then regenerate.",
+                "可随时跳转任意步骤修改内容后再重生成。",
+              )}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700"
+                href="/dashboard/flow/build?step=9"
+              >
+                {t("Review", "复核")}
+              </Link>
+              <Link
+                className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700"
+                href="/dashboard/flow/build?step=10"
+              >
+                {t("Generated result", "生成结果")}
+              </Link>
+            </div>
+          </Card>
+        </aside>
+
+        <div className="space-y-6">
+          <Card className="border-slate-200 bg-white/92 p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{t("Current section", "当前分段")}</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                  {t(`Step ${step} of 10`, `第 ${step} / 10 步`)} — {stepMeta.title}
+                </h2>
+                <p className="mt-2 text-sm text-slate-600">{stepMeta.description}</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  {t(
+                    "You can continue in order or jump to any section from the workspace rail.",
+                    "你可以按推荐顺序继续，也可以在左侧工作区中直接跳转任意分段。",
+                  )}
+                </p>
+              </div>
+              <Badge className="bg-white text-slate-700">{progressPercent}% {t("complete", "已完成")}</Badge>
+            </div>
+          </Card>
+
+      {step === 1 ? (
         <Card className="space-y-5 border-slate-200 bg-white/92 p-6">
           <p className="text-sm text-slate-600">
             Start with your identity details. You can leave optional fields blank and return later.
@@ -457,7 +527,7 @@ export default async function BuildFlowPage({
         </Card>
       ) : null}
 
-      {!stepLocked && step === 2 ? (
+      {step === 2 ? (
         <Card className="space-y-5 border-slate-200 bg-white/92 p-6">
           <p className="text-sm text-slate-600">
             Add education entries. Optional fields help recruiters understand academic strength.
@@ -549,7 +619,7 @@ export default async function BuildFlowPage({
         </Card>
       ) : null}
 
-      {!stepLocked && step === 3 ? (
+      {step === 3 ? (
         <Card className="space-y-5 border-slate-200 bg-white/92 p-6">
           <p className="text-sm text-slate-600">
             Add internship or work entries. If you can, mention measurable outcomes.
@@ -642,7 +712,7 @@ export default async function BuildFlowPage({
         </Card>
       ) : null}
 
-      {!stepLocked && step === 4 ? (
+      {step === 4 ? (
         <Card className="space-y-5 border-slate-200 bg-white/92 p-6">
           <p className="text-sm text-slate-600">Show projects that demonstrate practical skills and impact.</p>
           <form action={saveResumeAction} className="space-y-5">
@@ -722,7 +792,7 @@ export default async function BuildFlowPage({
         </Card>
       ) : null}
 
-      {!stepLocked && step === 5 ? (
+      {step === 5 ? (
         <Card className="space-y-5 border-slate-200 bg-white/92 p-6">
           <p className="text-sm text-slate-600">List your tools and capabilities. Keep it practical and role relevant.</p>
           <form action={saveResumeAction} className="space-y-4">
@@ -800,7 +870,7 @@ export default async function BuildFlowPage({
         </Card>
       ) : null}
 
-      {!stepLocked && step === 6 ? (
+      {step === 6 ? (
         <Card className="space-y-5 border-slate-200 bg-white/92 p-6">
           <p className="text-sm text-slate-600">
             Optional fields below can improve output quality. Leave blank if you do not have this information yet.
@@ -919,7 +989,7 @@ export default async function BuildFlowPage({
         </Card>
       ) : null}
 
-      {!stepLocked && step === 7 ? (
+      {step === 7 ? (
         <Card className="space-y-5 border-slate-200 bg-white/92 p-6">
           <p className="text-sm text-slate-600">
             Add role context. More detail improves matching quality, but only target role is required to continue.
@@ -1031,13 +1101,13 @@ export default async function BuildFlowPage({
         </Card>
       ) : null}
 
-      {!stepLocked && step === 8 ? (
+      {step === 8 ? (
         <Card className="space-y-5 border-slate-200 bg-white/92 p-6">
           <p className="text-sm text-slate-600">
             {pickText(
               uiLanguage,
-              "Set lightweight style preferences for generated output.",
-              "设置输出偏好（可选），用于控制生成语言与模板风格。",
+              "Set output preferences before generation. You can revisit this section any time.",
+              "设置生成前的输出偏好。你可以随时回到本分段修改。",
             )}
           </p>
           <form action={saveResumeAction} className="space-y-4">
@@ -1073,23 +1143,25 @@ export default async function BuildFlowPage({
                   <option value="zh">中文</option>
                 </select>
               </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">
-                  {pickText(uiLanguage, "Template selection", "模板选择")}
-                </span>
-                <select
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-                  defaultValue={profile?.preferences.templateId ?? "classic_ats"}
-                  name="templateId"
-                >
-                  {RESUME_TEMPLATES.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {uiLanguage === "zh" ? template.name.zh : template.name.en}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600">
+                <p className="font-medium text-slate-800">
+                  {pickText(uiLanguage, "Template matching tip", "模板选择提示")}
+                </p>
+                <p className="mt-1">
+                  {pickText(
+                    uiLanguage,
+                    "ATS-heavy applications usually perform best with Classic ATS-safe. For portfolio-heavy roles, use Technical / product-focused.",
+                    "若投递流程偏 ATS，优先使用“经典 ATS 安全”；若项目比重更高，可选“技术与产品导向”。",
+                  )}
+                </p>
+              </div>
             </div>
+
+            <TemplateGalleryField
+              defaultTemplateId={profile?.preferences.templateId || "classic_ats"}
+              templates={RESUME_TEMPLATES}
+              uiLanguage={uiLanguage}
+            />
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-slate-700">Summary style (optional)</span>
               <input
@@ -1172,7 +1244,7 @@ export default async function BuildFlowPage({
         </Card>
       ) : null}
 
-      {!stepLocked && step === 9 ? (
+      {step === 9 ? (
         <Card className="space-y-6 border-slate-200 bg-white/92 p-6">
           <div>
             <p className="text-sm text-slate-600">
@@ -1237,7 +1309,7 @@ export default async function BuildFlowPage({
         </Card>
       ) : null}
 
-      {!stepLocked && step === 10 ? (
+      {step === 10 ? (
         <Card className="space-y-6 border-slate-200 bg-white/92 p-6">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-800">
@@ -1303,6 +1375,30 @@ export default async function BuildFlowPage({
                   </ul>
                 </div>
               ) : null}
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-sm font-medium text-slate-900">
+                  {pickText(uiLanguage, "Jump back and edit any section", "可随时回跳编辑任意分段")}
+                </p>
+                <p className="mt-1 text-xs text-slate-600">
+                  {pickText(
+                    uiLanguage,
+                    "Update content or output settings, then regenerate from this workspace.",
+                    "先修改内容或输出设置，再回到此处重生成。",
+                  )}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {steps.slice(0, 8).map((item) => (
+                    <Link
+                      className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-700 hover:bg-white"
+                      href={`/dashboard/flow/build?step=${item.number}`}
+                      key={`jump_${item.number}`}
+                    >
+                      {t(`Step ${item.number}`, `第 ${item.number} 步`)}
+                    </Link>
+                  ))}
+                </div>
+              </div>
 
               <form action={saveResumeAction} className="space-y-3">
                 <input name="currentStep" type="hidden" value="10" />
@@ -1385,6 +1481,8 @@ export default async function BuildFlowPage({
           </div>
         </Card>
       ) : null}
+        </div>
+      </div>
     </div>
   );
 }

@@ -43,7 +43,9 @@ function normalizeTemplateId(value: string | null | undefined): ResumeTemplateId
   if (
     value === "classic_ats" ||
     value === "modern_professional" ||
-    value === "technical_product"
+    value === "technical_product" ||
+    value === "executive_leadership" ||
+    value === "minimal_bilingual"
   ) {
     return value;
   }
