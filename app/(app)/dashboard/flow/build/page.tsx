@@ -353,6 +353,7 @@ export default async function BuildFlowPage({
           "一次只完成一个步骤。大多数字段均可选，并支持每步保存草稿。",
         )}
         title={pickText(uiLanguage, "Build From Scratch", "从零创建")}
+        workspaceLabel={pickText(uiLanguage, "ResumeForge Workspace", "ResumeForge 工作区")}
       />
 
       {banner ? <StatusBanner {...banner} /> : null}

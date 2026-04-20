@@ -34,9 +34,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       <div className="relative">
         <DashboardTopNavigation uiLanguage={uiLanguage} user={snapshot.user} />
         <main className="mx-auto min-w-0 w-full max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
-          <div className="rounded-[32px] border border-white/40 bg-white/72 p-4 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.35)] backdrop-blur-sm sm:p-6 lg:p-8">
-            {children}
-          </div>
+          {children}
         </main>
       </div>
     </div>

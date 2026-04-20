@@ -96,7 +96,11 @@ export function parseResume(resumeText: string): ParsedResume {
     }
 
     if (BULLET_REGEX.test(line)) {
-      section.bullets.push(line.replace(BULLET_REGEX, "").trim());
+      const bullet = line.replace(BULLET_REGEX, "").trim();
+      if (bullet) {
+        section.bullets.push(bullet);
+      }
+      continue;
     }
 
     section.lines.push(line);

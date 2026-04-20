@@ -13,9 +13,9 @@ import type { ResumeRenderModel } from "@/lib/resume-render";
 
 let fontsRegistered = false;
 const CJK_REGULAR_URL =
-  "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf";
+  "https://cdn.jsdelivr.net/gh/notofonts/noto-cjk@main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf";
 const CJK_BOLD_URL =
-  "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Bold.otf";
+  "https://cdn.jsdelivr.net/gh/notofonts/noto-cjk@main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Bold.otf";
 
 function ensureFonts() {
   if (fontsRegistered) {
@@ -29,6 +29,14 @@ function ensureFonts() {
       "node_modules/@fontsource/inter/files/inter-latin-400-normal.woff",
     ),
     fontWeight: 400,
+  });
+  Font.register({
+    family: "ResumeInter",
+    src: path.join(
+      process.cwd(),
+      "node_modules/@fontsource/inter/files/inter-latin-500-normal.woff",
+    ),
+    fontWeight: 500,
   });
   Font.register({
     family: "ResumeInter",
@@ -48,12 +56,16 @@ function ensureFonts() {
     src: CJK_BOLD_URL,
     fontWeight: 700,
   });
+  Font.registerHyphenationCallback((word) => [word]);
 
   fontsRegistered = true;
 }
 
 function createStyles(model: ResumeRenderModel) {
-  const baseFont = "ResumeCJK";
+  const baseFont =
+    model.language === "zh" || model.templateId === "minimal_bilingual"
+      ? "ResumeCJK"
+      : "ResumeInter";
   const technical = model.templateId === "technical_product";
   const modern = model.templateId === "modern_professional";
   const executive = model.templateId === "executive_leadership";

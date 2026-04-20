@@ -222,6 +222,118 @@ function asStringArray(value: unknown, limit = 12) {
     .slice(0, limit);
 }
 
+function dedupeCaseInsensitive(items: string[], limit = 40) {
+  const seen = new Set<string>();
+  const output: string[] = [];
+
+  for (const item of items) {
+    const normalized = item.trim().replace(/\s+/g, " ").toLowerCase();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    output.push(item.trim());
+    if (output.length >= limit) {
+      break;
+    }
+  }
+
+  return output;
+}
+
+function isPlaceholderLike(text: string) {
+  const normalized = text.trim().replace(/[:：]/g, "").toLowerCase();
+  return [
+    "summary",
+    "skills",
+    "experience",
+    "education",
+    "projects",
+    "certifications",
+    "awards",
+    "links",
+    "个人摘要",
+    "技能",
+    "工作经历",
+    "教育背景",
+    "项目经历",
+    "证书",
+    "奖项",
+    "链接",
+    "n/a",
+    "none",
+    "not available",
+    "not provided",
+  ].includes(normalized);
+}
+
+function normalizeSectionKey(rawKey: string) {
+  const value = rawKey.toLowerCase().trim();
+  if (["summary", "skills", "experience", "education", "projects", "certifications", "awards", "links"].includes(value)) {
+    return value;
+  }
+  if (value.includes("skill")) return "skills";
+  if (value.includes("exper")) return "experience";
+  if (value.includes("educ")) return "education";
+  if (value.includes("project")) return "projects";
+  if (value.includes("cert")) return "certifications";
+  if (value.includes("award")) return "awards";
+  if (value.includes("link")) return "links";
+  return "custom";
+}
+
+function titleFromKey(key: string, language: "en" | "zh") {
+  const mapEn: Record<string, string> = {
+    summary: "Summary",
+    skills: "Skills",
+    experience: "Experience",
+    education: "Education",
+    projects: "Projects",
+    certifications: "Certifications",
+    awards: "Awards",
+    links: "Links",
+    custom: "Additional",
+  };
+  const mapZh: Record<string, string> = {
+    summary: "个人摘要",
+    skills: "技能",
+    experience: "工作经历",
+    education: "教育背景",
+    projects: "项目经历",
+    certifications: "证书",
+    awards: "奖项",
+    links: "链接",
+    custom: "补充信息",
+  };
+
+  return language === "zh" ? (mapZh[key] ?? mapZh.custom) : (mapEn[key] ?? mapEn.custom);
+}
+
+function buildDraftContent(input: {
+  name: string;
+  summary: string;
+  sections: Array<{ title: string; lines: string[]; bullets: string[] }>;
+}) {
+  const lines: string[] = [input.name];
+  if (input.summary) {
+    lines.push("");
+    lines.push(input.summary);
+  }
+
+  for (const section of input.sections) {
+    lines.push("");
+    lines.push(section.title);
+    for (const line of section.lines) {
+      lines.push(line);
+    }
+    for (const bullet of section.bullets) {
+      lines.push(`- ${bullet}`);
+    }
+  }
+
+  return lines.join("\n").trim();
+}
+
 function clampScore(value: unknown) {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.max(0, Math.min(100, Math.round(value)))
@@ -315,41 +427,81 @@ function normalizeTailoredResume(value: unknown): TailoredResumeOutput {
 function normalizeResumeDraft(value: unknown, language: "en" | "zh"): ResumeDraftOutput {
   const raw = (value ?? {}) as Record<string, unknown>;
   const sectionsInput = Array.isArray(raw.sections) ? raw.sections : [];
+  const sectionMap = new Map<
+    string,
+    {
+      key: string;
+      title: string;
+      lines: string[];
+      bullets: string[];
+    }
+  >();
+
+  for (const item of sectionsInput) {
+    const section = item as Record<string, unknown>;
+    const key = normalizeSectionKey(typeof section.key === "string" ? section.key : "");
+    const titleCandidate =
+      typeof section.title === "string" && section.title.trim().length > 0
+        ? section.title.trim()
+        : titleFromKey(key, language);
+    const title = isPlaceholderLike(titleCandidate) ? titleFromKey(key, language) : titleCandidate;
+    const lines = dedupeCaseInsensitive(
+      asStringArray(section.lines, 26).filter((line) => !isPlaceholderLike(line)),
+      20,
+    );
+    const bullets = dedupeCaseInsensitive(
+      asStringArray(section.bullets, 36).filter((line) => !isPlaceholderLike(line)),
+      24,
+    );
+
+    if (lines.length === 0 && bullets.length === 0) {
+      continue;
+    }
+
+    const existing = sectionMap.get(key);
+    if (!existing) {
+      sectionMap.set(key, { key, title, lines, bullets });
+      continue;
+    }
+
+    existing.lines = dedupeCaseInsensitive([...existing.lines, ...lines], 20);
+    existing.bullets = dedupeCaseInsensitive([...existing.bullets, ...bullets], 24);
+  }
+
+  const preferredOrder = ["summary", "skills", "experience", "projects", "education", "certifications", "awards", "links", "custom"];
+  const normalizedSections = Array.from(sectionMap.values()).sort(
+    (a, b) => preferredOrder.indexOf(a.key) - preferredOrder.indexOf(b.key),
+  );
+
+  const name =
+    typeof raw.name === "string" && raw.name.trim().length > 0
+      ? raw.name.trim()
+      : language === "zh"
+        ? "简历草稿"
+        : "Resume Draft";
+  const summary =
+    typeof raw.summary === "string" && raw.summary.trim().length > 0
+      ? raw.summary.trim()
+      : language === "zh"
+        ? "已基于输入信息生成草稿。"
+        : "Draft generated from supplied profile information.";
+  const contentCandidate = typeof raw.content === "string" ? raw.content.trim() : "";
+  const rebuiltContent = buildDraftContent({
+    name,
+    summary,
+    sections: normalizedSections,
+  });
+  const content =
+    contentCandidate.length >= 120 && contentCandidate.split(/\r?\n/).length >= 8
+      ? contentCandidate
+      : rebuiltContent;
 
   return {
-    name:
-      typeof raw.name === "string" && raw.name.trim().length > 0
-        ? raw.name.trim()
-        : language === "zh"
-          ? "简历草稿"
-          : "Resume Draft",
-    summary:
-      typeof raw.summary === "string" && raw.summary.trim().length > 0
-        ? raw.summary.trim()
-        : language === "zh"
-          ? "已基于输入信息生成草稿。"
-          : "Draft generated from supplied profile information.",
-    sections: sectionsInput
-      .map((item) => {
-        const section = item as Record<string, unknown>;
-        return {
-          key:
-            typeof section.key === "string" && section.key.trim().length > 0
-              ? section.key.trim()
-              : "custom",
-          title:
-            typeof section.title === "string" && section.title.trim().length > 0
-              ? section.title.trim()
-              : language === "zh"
-                ? "补充信息"
-                : "Additional Information",
-          lines: asStringArray(section.lines, 20),
-          bullets: asStringArray(section.bullets, 30),
-        };
-      })
-      .filter((section) => section.lines.length > 0 || section.bullets.length > 0),
-    content: typeof raw.content === "string" ? raw.content.trim() : "",
-    qualityNotes: asStringArray(raw.qualityNotes, 8),
+    name,
+    summary,
+    sections: normalizedSections,
+    content,
+    qualityNotes: dedupeCaseInsensitive(asStringArray(raw.qualityNotes, 8), 8),
   };
 }
 
@@ -584,7 +736,8 @@ Requirements:
 2. Keep concise recruiter-ready hierarchy.
 3. Use achievement-oriented phrasing when supported by facts.
 4. Omit empty sections.
-5. Return both structured sections and one final plain-text resume content.`,
+5. Rewrite low-signal phrasing into stronger professional language without changing facts.
+6. Return both structured sections and one final plain-text resume content.`,
       normalize: (value) => normalizeResumeDraft(value, input.outputLanguage),
     });
   }

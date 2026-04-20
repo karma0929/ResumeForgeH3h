@@ -513,6 +513,84 @@ function resolveSnapshotRecords(
   return { resume, jobDescription };
 }
 
+function isPlaceholderResumeLine(line: string) {
+  const normalized = line.replace(/[:：]/g, "").trim().toLowerCase();
+  return [
+    "summary",
+    "skills",
+    "experience",
+    "education",
+    "projects",
+    "certifications",
+    "awards",
+    "links",
+    "个人摘要",
+    "技能",
+    "工作经历",
+    "教育背景",
+    "项目经历",
+    "证书",
+    "奖项",
+    "链接",
+  ].includes(normalized);
+}
+
+function dedupeResumeLines(lines: string[], limit = 220) {
+  const seen = new Set<string>();
+  const output: string[] = [];
+
+  for (const line of lines) {
+    const cleaned = line.trim().replace(/\s+/g, " ");
+    const key = cleaned.toLowerCase();
+    if (!cleaned || isPlaceholderResumeLine(cleaned) || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    output.push(cleaned);
+    if (output.length >= limit) {
+      break;
+    }
+  }
+
+  return output;
+}
+
+function buildResumeTextFromDraftOutput(input: {
+  output: ResumeDraftOutput;
+  outputLanguage: ResumeOutputLanguage;
+}) {
+  const lines: string[] = [];
+  const name = input.output.name.trim();
+  if (name) {
+    lines.push(name);
+  }
+
+  if (input.output.summary.trim()) {
+    lines.push("");
+    lines.push(input.outputLanguage === "zh" ? "个人摘要" : "SUMMARY");
+    lines.push(input.output.summary.trim());
+  }
+
+  for (const section of input.output.sections) {
+    const sectionLines = dedupeResumeLines(section.lines, 24);
+    const sectionBullets = dedupeResumeLines(section.bullets, 32);
+    if (sectionLines.length === 0 && sectionBullets.length === 0) {
+      continue;
+    }
+    lines.push("");
+    lines.push(section.title.trim());
+    for (const line of sectionLines) {
+      lines.push(line);
+    }
+    for (const bullet of sectionBullets) {
+      lines.push(`- ${bullet}`);
+    }
+  }
+
+  const content = dedupeResumeLines(lines, 260).join("\n");
+  return content.trim();
+}
+
 export async function createResumeRecord(input: {
   userId: string;
   resumeId?: string;
@@ -856,10 +934,16 @@ export async function generateGuidedResumeDraft(input: {
     company: primaryJobDescription?.company || "",
     jobDescriptionText: primaryJobDescription?.description || "",
   });
+  const rebuiltDraftText = buildResumeTextFromDraftOutput({
+    output,
+    outputLanguage,
+  });
   const generatedContent =
-    output.content.trim().length >= 40
-      ? output.content.trim()
-      : buildResumeTextFromProfile({
+    rebuiltDraftText.length >= 40
+      ? rebuiltDraftText
+      : output.content.trim().length >= 40
+        ? output.content.trim()
+        : buildResumeTextFromProfile({
           title: resume.title,
           profile,
           fallbackText: resume.originalText,

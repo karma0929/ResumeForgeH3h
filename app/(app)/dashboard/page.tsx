@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { getSessionIdentity } from "@/lib/auth";
 import { getAppSnapshot } from "@/lib/data";
@@ -26,6 +25,7 @@ function PathLauncherCard({
   highlighted = false,
   started = false,
   progress,
+  uiLanguage,
 }: {
   title: string;
   description: string;
@@ -36,14 +36,16 @@ function PathLauncherCard({
   highlighted?: boolean;
   started?: boolean;
   progress?: { completed: number; total: number; percent: number };
+  uiLanguage: "en" | "zh";
 }) {
+  const t = (en: string, zh: string) => (uiLanguage === "zh" ? zh : en);
   return (
-    <Card
+    <section
       className={cn(
-        "group relative overflow-hidden border-slate-200 bg-white/92 p-7 transition-all duration-300",
+        "group relative overflow-hidden rounded-[26px] border border-slate-200/70 bg-white/82 p-7 transition-all duration-300 backdrop-blur-sm",
         highlighted
-          ? "border-sky-200 bg-gradient-to-b from-sky-50/70 to-white shadow-[0_30px_80px_-55px_rgba(2,132,199,0.45)]"
-          : "hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white",
+          ? "border-sky-200 bg-gradient-to-b from-sky-50/70 to-white shadow-[0_30px_80px_-55px_rgba(2,132,199,0.42)]"
+          : "hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white/92",
       )}
     >
       <div className="flex items-start justify-between gap-4">
@@ -52,10 +54,10 @@ function PathLauncherCard({
         </div>
         {started && progress ? (
           <Badge className="bg-white text-slate-700">
-            {progress.completed}/{progress.total} complete
+            {progress.completed}/{progress.total} {t("complete", "已完成")}
           </Badge>
         ) : (
-          <Badge className="bg-white text-slate-600">New path</Badge>
+          <Badge className="bg-white text-slate-600">{t("New path", "新路径")}</Badge>
         )}
       </div>
       <h2 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">{title}</h2>
@@ -87,7 +89,7 @@ function PathLauncherCard({
         {cta}
         <ArrowRight className="h-4 w-4" />
       </Link>
-    </Card>
+    </section>
   );
 }
 
@@ -106,9 +108,10 @@ export default async function DashboardPage() {
           "选择一条路径并按步骤完成。ResumeForge 会从信息采集引导到可用草稿。",
         )}
         title={pickText(uiLanguage, "How do you want to start?", "你想如何开始？")}
+        workspaceLabel={pickText(uiLanguage, "ResumeForge Workspace", "ResumeForge 工作区")}
       />
 
-      <Card className="border-slate-200 bg-white/92 p-7">
+      <section className="rounded-[30px] border border-slate-200/70 bg-white/76 p-7 shadow-[0_24px_65px_-48px_rgba(15,23,42,0.4)] backdrop-blur-sm">
         <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
           {pickText(uiLanguage, "Path selection", "路径选择")}
         </p>
@@ -129,7 +132,7 @@ export default async function DashboardPage() {
 
         <div className="mt-7 grid gap-5 xl:grid-cols-2">
           <PathLauncherCard
-            cta="Open improve path"
+            cta={pickText(uiLanguage, "Open improve path", "进入优化路径")}
             description={pickText(
               uiLanguage,
               "Use this if you already have a baseline resume and want role-targeted improvements.",
@@ -146,6 +149,7 @@ export default async function DashboardPage() {
             progress={journey.improve}
             started={false}
             title={pickText(uiLanguage, "Improve an existing resume", "优化现有简历")}
+            uiLanguage={uiLanguage}
           />
           <PathLauncherCard
             cta={journey.build.started ? pickText(uiLanguage, "Continue building", "继续创建") : pickText(uiLanguage, "Build my resume step by step", "分步创建我的简历")}
@@ -165,9 +169,10 @@ export default async function DashboardPage() {
             progress={journey.build}
             started={journey.build.started}
             title={pickText(uiLanguage, "Build from scratch", "从零创建")}
+            uiLanguage={uiLanguage}
           />
         </div>
-      </Card>
+      </section>
     </div>
   );
 }

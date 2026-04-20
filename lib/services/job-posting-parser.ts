@@ -1,5 +1,6 @@
 import { getAIService } from "@/lib/ai";
 import type { ExtractedJobPostingOutput } from "@/lib/ai/types";
+import type { TargetRoleBriefData } from "@/lib/types";
 import { ExternalServiceError, ValidationError } from "@/lib/errors";
 import { logEvent } from "@/lib/logger";
 
@@ -115,6 +116,85 @@ function extractJsonLdJobPosting(html: string) {
   return null;
 }
 
+function keywordListFromText(source: string) {
+  return source
+    .split(/[\n,;；|]/)
+    .map((item) => item.replace(/^[-*•]\s*/, "").trim())
+    .filter((item) => item.length >= 2 && item.length <= 42)
+    .slice(0, 24);
+}
+
+function inferBriefFallback(readableText: string): Partial<TargetRoleBriefData> {
+  const lower = readableText.toLowerCase();
+  const firstBlock = readableText.slice(0, 2800);
+
+  const requiredBlockMatch =
+    readableText.match(/(required qualifications|must have|requirements)[\s\S]{0,1500}/i) ??
+    readableText.match(/(任职要求|岗位要求|必备条件)[\s\S]{0,1500}/i);
+  const preferredBlockMatch =
+    readableText.match(/(preferred qualifications|nice to have|preferred skills)[\s\S]{0,1200}/i) ??
+    readableText.match(/(加分项|优先条件|优先技能)[\s\S]{0,1200}/i);
+
+  const topRequiredSkills = requiredBlockMatch
+    ? keywordListFromText(requiredBlockMatch[0]).slice(0, 14)
+    : keywordListFromText(firstBlock).slice(0, 8);
+  const preferredSkills = preferredBlockMatch
+    ? keywordListFromText(preferredBlockMatch[0]).slice(0, 12)
+    : [];
+
+  const priorities: TargetRoleBriefData["hiringPriorities"] = [];
+  if (/(architecture|system design|distributed|scalable|深度|架构|系统设计|分布式)/i.test(lower)) {
+    priorities.push("technical_depth");
+  }
+  if (/(collaborat|communicat|stakeholder|跨团队|沟通|协作)/i.test(lower)) {
+    priorities.push("communication");
+  }
+  if (/(lead|mentor|ownership|带队|负责|主导)/i.test(lower)) {
+    priorities.push("leadership");
+  }
+  if (/(deliver|ship|execute|交付|落地|执行)/i.test(lower)) {
+    priorities.push("execution");
+  }
+  if (/(research|experiment|analysis|研究|实验|分析)/i.test(lower)) {
+    priorities.push("research");
+  }
+  if (/(product|customer|roadmap|业务|产品思维)/i.test(lower)) {
+    priorities.push("product_thinking");
+  }
+
+  return {
+    seniorityLevel:
+      /(senior|staff|principal|高级|资深)/i.test(lower)
+        ? "Senior"
+        : /(intern|graduate|new grad|实习|应届)/i.test(lower)
+          ? "Entry"
+          : "",
+    employmentType:
+      /(intern|实习)/i.test(lower)
+        ? "Internship"
+        : /(contract|合同|外包)/i.test(lower)
+          ? "Contract"
+          : /(part[- ]?time|兼职)/i.test(lower)
+            ? "Part-time"
+            : /(full[- ]?time|全职)/i.test(lower)
+              ? "Full-time"
+              : "",
+    workMode:
+      /(remote|远程)/i.test(lower)
+        ? "Remote"
+        : /(hybrid|混合办公)/i.test(lower)
+          ? "Hybrid"
+          : /(onsite|on-site|现场|到岗)/i.test(lower)
+            ? "Onsite"
+            : "",
+    topRequiredSkills,
+    preferredSkills,
+    emphasizeKeywords: keywordListFromText(firstBlock).slice(0, 16),
+    responsibilitiesSummary: firstBlock.slice(0, 480),
+    hiringPriorities: priorities.slice(0, 4),
+  };
+}
+
 function cleanHtmlToText(html: string) {
   const stripped = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -209,6 +289,7 @@ export async function parseJobPostingFromUrl(input: {
     sourceUrl,
     jobPostingText: enrichedText,
   });
+  const inferred = inferBriefFallback(readableText);
 
   return {
     ...extracted,
@@ -223,6 +304,29 @@ export async function parseJobPostingFromUrl(input: {
     briefData: {
       ...extracted.briefData,
       sourceUrl,
+      seniorityLevel: extracted.briefData.seniorityLevel || inferred.seniorityLevel || "",
+      employmentType: extracted.briefData.employmentType || inferred.employmentType || "",
+      workMode: extracted.briefData.workMode || inferred.workMode || "",
+      topRequiredSkills:
+        extracted.briefData.topRequiredSkills.length > 0
+          ? extracted.briefData.topRequiredSkills
+          : inferred.topRequiredSkills ?? [],
+      preferredSkills:
+        extracted.briefData.preferredSkills.length > 0
+          ? extracted.briefData.preferredSkills
+          : inferred.preferredSkills ?? [],
+      emphasizeKeywords:
+        extracted.briefData.emphasizeKeywords.length > 0
+          ? extracted.briefData.emphasizeKeywords
+          : inferred.emphasizeKeywords ?? [],
+      responsibilitiesSummary:
+        extracted.briefData.responsibilitiesSummary ||
+        inferred.responsibilitiesSummary ||
+        "",
+      hiringPriorities:
+        extracted.briefData.hiringPriorities.length > 0
+          ? extracted.briefData.hiringPriorities
+          : inferred.hiringPriorities ?? [],
     },
   };
 }

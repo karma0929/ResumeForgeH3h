@@ -295,6 +295,10 @@ function dedupe(items: string[]) {
   });
 }
 
+function dedupeWithLimit(items: string[], limit = 28) {
+  return dedupe(items).slice(0, limit);
+}
+
 function isPlaceholder(line: string) {
   const normalized = line.replace(/[:：]/g, "").trim().toLowerCase();
   return [
@@ -323,7 +327,7 @@ function createSectionsFromProfile(
 ): ResumeRenderSection[] {
   const sections: ResumeRenderSection[] = [];
 
-  const skills = dedupe(profile.skills.filter((item) => !isPlaceholder(item)));
+  const skills = dedupeWithLimit(profile.skills.filter((item) => !isPlaceholder(item)), 24);
   if (skills.length > 0) {
     sections.push({
       key: "skills",
@@ -354,12 +358,12 @@ function createSectionsFromProfile(
     sections.push({
       key: "experience",
       title: sectionTitle("experience", language),
-      lines: dedupe(experienceLines),
-      bullets: dedupe(experienceBullets).filter((item) => !isPlaceholder(item)),
+      lines: dedupeWithLimit(experienceLines, 26),
+      bullets: dedupeWithLimit(experienceBullets, 34).filter((item) => !isPlaceholder(item)),
     });
   }
 
-  const education = dedupe(profile.education.filter((item) => !isPlaceholder(item)));
+  const education = dedupeWithLimit(profile.education.filter((item) => !isPlaceholder(item)), 16);
   if (education.length > 0) {
     sections.push({
       key: "education",
@@ -369,7 +373,7 @@ function createSectionsFromProfile(
     });
   }
 
-  const projects = dedupe(profile.projects.filter((item) => !isPlaceholder(item)));
+  const projects = dedupeWithLimit(profile.projects.filter((item) => !isPlaceholder(item)), 18);
   if (projects.length > 0) {
     sections.push({
       key: "projects",
@@ -379,7 +383,7 @@ function createSectionsFromProfile(
     });
   }
 
-  const certifications = dedupe(profile.certifications.filter((item) => !isPlaceholder(item)));
+  const certifications = dedupeWithLimit(profile.certifications.filter((item) => !isPlaceholder(item)), 12);
   if (certifications.length > 0) {
     sections.push({
       key: "certifications",
@@ -389,7 +393,7 @@ function createSectionsFromProfile(
     });
   }
 
-  const awards = dedupe(profile.awards.filter((item) => !isPlaceholder(item)));
+  const awards = dedupeWithLimit(profile.awards.filter((item) => !isPlaceholder(item)), 12);
   if (awards.length > 0) {
     sections.push({
       key: "awards",
@@ -399,8 +403,9 @@ function createSectionsFromProfile(
     });
   }
 
-  const links = dedupe(
+  const links = dedupeWithLimit(
     [profile.links.linkedIn, profile.links.github, profile.links.portfolio].filter(Boolean),
+    6,
   );
   if (links.length > 0) {
     sections.push({
@@ -424,10 +429,60 @@ function createSectionsFromText(
     .map((section) => ({
       key: section.key,
       title: sectionTitle(section.key, language),
-      lines: dedupe(section.lines.filter((line) => !isPlaceholder(line))),
-      bullets: dedupe(section.bullets.filter((line) => !isPlaceholder(line))),
+      lines: dedupeWithLimit(section.lines.filter((line) => !isPlaceholder(line)), 26),
+      bullets: dedupeWithLimit(section.bullets.filter((line) => !isPlaceholder(line)), 36),
     }))
     .filter((section) => section.lines.length > 0 || section.bullets.length > 0);
+}
+
+function mergeSections(
+  textSections: ResumeRenderSection[],
+  profileSections: ResumeRenderSection[],
+) {
+  const merged = new Map<string, ResumeRenderSection>();
+
+  for (const section of [...profileSections, ...textSections]) {
+    const key = section.key;
+    const existing = merged.get(key);
+
+    if (!existing) {
+      merged.set(key, {
+        key,
+        title: section.title,
+        lines: dedupeWithLimit(section.lines.filter((line) => !isPlaceholder(line)), 28),
+        bullets: dedupeWithLimit(section.bullets.filter((line) => !isPlaceholder(line)), 38),
+      });
+      continue;
+    }
+
+    existing.lines = dedupeWithLimit(
+      [...existing.lines, ...section.lines].filter((line) => !isPlaceholder(line)),
+      28,
+    );
+    existing.bullets = dedupeWithLimit(
+      [...existing.bullets, ...section.bullets].filter((line) => !isPlaceholder(line)),
+      38,
+    );
+  }
+
+  const preferredOrder = [
+    "summary",
+    "skills",
+    "experience",
+    "projects",
+    "education",
+    "certifications",
+    "awards",
+    "links",
+  ];
+
+  return Array.from(merged.values())
+    .filter((section) => section.lines.length > 0 || section.bullets.length > 0)
+    .sort((a, b) => {
+      const aIndex = preferredOrder.indexOf(a.key);
+      const bIndex = preferredOrder.indexOf(b.key);
+      return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+    });
 }
 
 function buildHeadline(profile: ResumeProfileData, language: ResumeOutputLanguage) {
@@ -477,7 +532,10 @@ export function buildResumeRenderModel(input: {
   const summary = profile.professionalSummary || input.version.summary || "";
   const contentSections = createSectionsFromText(input.version.content, language);
   const profileSections = createSectionsFromProfile(profile, language);
-  const sections = contentSections.length >= 2 ? contentSections : profileSections;
+  const sections =
+    contentSections.length >= 2
+      ? mergeSections(contentSections, profileSections)
+      : profileSections;
 
   return {
     language,

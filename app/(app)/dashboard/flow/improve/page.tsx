@@ -26,6 +26,7 @@ export default async function ImproveFlowPage() {
           "该路径正在重构中。当前请使用“从零创建”以体验完整引导流程。",
         )}
         title={pickText(uiLanguage, "Improve Existing Resume (Upcoming)", "优化现有简历（即将上线）")}
+        workspaceLabel={pickText(uiLanguage, "ResumeForge Workspace", "ResumeForge 工作区")}
       />
 
       <Card className="border-slate-200 bg-white/92 p-7">
