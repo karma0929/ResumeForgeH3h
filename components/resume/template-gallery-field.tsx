@@ -66,10 +66,15 @@ export function TemplateGalleryField({
   );
 
   return (
-    <fieldset className="space-y-4">
-      <legend className="text-sm font-medium text-slate-700">
+    <fieldset className="space-y-4 rounded-[22px] border border-slate-200/70 bg-white/70 p-4 backdrop-blur-sm">
+      <legend className="px-1 text-sm font-semibold text-slate-800">
         {uiLanguage === "zh" ? "模板库" : "Template library"}
       </legend>
+      <p className="text-xs text-slate-600">
+        {uiLanguage === "zh"
+          ? "选择版式会直接影响预览与导出效果。建议先看缩略预览再确定模板。"
+          : "Template choice directly changes preview and export layout. Review thumbnails before selecting."}
+      </p>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {templates.map((template) => {
@@ -83,10 +88,10 @@ export function TemplateGalleryField({
           return (
             <label
               className={cn(
-                "group cursor-pointer rounded-2xl border bg-white p-3 transition",
+                "group cursor-pointer rounded-2xl border bg-white/90 p-3 transition",
                 checked
                   ? "border-sky-300 ring-2 ring-sky-100"
-                  : "border-slate-200 hover:border-slate-300 hover:shadow-sm",
+                  : "border-slate-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_16px_30px_-22px_rgba(15,23,42,0.45)]",
               )}
               key={template.id}
             >
@@ -127,6 +132,11 @@ export function TemplateGalleryField({
                   </span>
                 ))}
               </div>
+              {checked ? (
+                <p className="mt-2 text-[11px] font-medium text-sky-700">
+                  {uiLanguage === "zh" ? "当前已选模板" : "Currently selected"}
+                </p>
+              ) : null}
             </label>
           );
         })}

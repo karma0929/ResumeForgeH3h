@@ -88,6 +88,14 @@ function compactLines(lines: Array<string | null | undefined>) {
   return lines.map((line) => (line ?? "").trim()).filter(Boolean);
 }
 
+function noteLine(label: string, value: string) {
+  const normalized = value.trim();
+  if (!normalized) {
+    return "";
+  }
+  return `${label}: ${normalized}`;
+}
+
 function buildUploadRedirectPath(input: {
   basePath: string;
   step: number | null;
@@ -370,31 +378,31 @@ export async function saveResumeAction(formData: FormData) {
 
     const enhancementNotes = compactLines([
       formData.has("volunteerExperience")
-        ? `Volunteer: ${readValueWithFallback(formData, "volunteerExperience", { max: 600 }, "")}`
+        ? noteLine("Volunteer", readValueWithFallback(formData, "volunteerExperience", { max: 600 }, ""))
         : "",
       formData.has("leadershipExperience")
-        ? `Leadership: ${readValueWithFallback(formData, "leadershipExperience", { max: 600 }, "")}`
+        ? noteLine("Leadership", readValueWithFallback(formData, "leadershipExperience", { max: 600 }, ""))
         : "",
       formData.has("extracurriculars")
-        ? `Extracurriculars: ${readValueWithFallback(formData, "extracurriculars", { max: 600 }, "")}`
+        ? noteLine("Extracurriculars", readValueWithFallback(formData, "extracurriculars", { max: 600 }, ""))
         : "",
       formData.has("publicationsLines")
-        ? `Publications: ${readLines(formData, "publicationsLines", 1200).join("; ")}`
+        ? noteLine("Publications", readLines(formData, "publicationsLines", 1200).join("; "))
         : "",
       formData.has("targetIndustries")
-        ? `Target industries: ${readValueWithFallback(formData, "targetIndustries", { max: 300 }, "")}`
+        ? noteLine("Target industries", readValueWithFallback(formData, "targetIndustries", { max: 300 }, ""))
         : "",
       formData.has("studentProfessionalPolish")
-        ? `Tone preference: ${readValueWithFallback(formData, "studentProfessionalPolish", { max: 120 }, "")}`
+        ? noteLine("Tone preference", readValueWithFallback(formData, "studentProfessionalPolish", { max: 120 }, ""))
         : "",
       formData.has("onePagePreference")
-        ? `One-page preference: ${readValueWithFallback(formData, "onePagePreference", { max: 120 }, "")}`
+        ? noteLine("One-page preference", readValueWithFallback(formData, "onePagePreference", { max: 120 }, ""))
         : "",
       formData.has("summaryStyle")
-        ? `Summary style: ${readValueWithFallback(formData, "summaryStyle", { max: 200 }, "")}`
+        ? noteLine("Summary style", readValueWithFallback(formData, "summaryStyle", { max: 200 }, ""))
         : "",
       formData.has("sectionEmphasis")
-        ? `Section emphasis: ${readValueWithFallback(formData, "sectionEmphasis", { max: 300 }, "")}`
+        ? noteLine("Section emphasis", readValueWithFallback(formData, "sectionEmphasis", { max: 300 }, ""))
         : "",
     ]);
 
