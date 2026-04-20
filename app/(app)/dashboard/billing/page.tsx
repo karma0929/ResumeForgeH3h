@@ -17,6 +17,8 @@ import {
 import { hasFeatureAccess } from "@/lib/billing/guards";
 import { getAppSnapshot } from "@/lib/data";
 import { allowDevelopmentMocks } from "@/lib/env";
+import { pickText } from "@/lib/i18n";
+import { getUiLanguage } from "@/lib/i18n-server";
 import { isUsageAction, type UsageAction } from "@/lib/usage";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -33,6 +35,7 @@ export default async function BillingPage({
   const params = await searchParams;
   const identity = await getSessionIdentity();
   const snapshot = await getAppSnapshot(identity);
+  const uiLanguage = await getUiLanguage();
   const currentPlan = snapshot.subscription?.plan ?? "FREE";
   const upgradeFeatureParam = queryValue(params, "upgradeFeature");
   const usageLimitParam = queryValue(params, "usageLimit");
@@ -50,8 +53,12 @@ export default async function BillingPage({
   return (
     <div className="space-y-8">
       <DashboardHeader
-        description="Manage plan changes, review payment history, and control your Stripe-backed subscription workflow."
-        title="Billing"
+        description={pickText(
+          uiLanguage,
+          "Manage plan changes, review payment history, and control your Stripe-backed subscription workflow.",
+          "管理订阅方案、查看支付记录，并控制 Stripe 计费流程。",
+        )}
+        title={pickText(uiLanguage, "Billing", "账单")}
       />
 
       {blocked && upgradeFeature ? (

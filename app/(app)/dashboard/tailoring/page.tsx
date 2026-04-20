@@ -17,6 +17,8 @@ import {
 import { getSessionIdentity } from "@/lib/auth";
 import { hasFeatureAccess } from "@/lib/billing/guards";
 import { getAppSnapshot } from "@/lib/data";
+import { pickText } from "@/lib/i18n";
+import { getUiLanguage } from "@/lib/i18n-server";
 import { getWorkflowAction, getWorkflowState } from "@/lib/onboarding";
 import { getUsageRemaining } from "@/lib/usage";
 import type { RewriteMode, RewriteResult, TailoredResumeOutput } from "@/lib/types";
@@ -41,6 +43,7 @@ export default async function TailoringPage({
   const params = await searchParams;
   const identity = await getSessionIdentity();
   const snapshot = await getAppSnapshot(identity);
+  const uiLanguage = await getUiLanguage();
   const resumeId = queryValue(params, "resumeId") ?? snapshot.resumes[0]?.id;
   const jobDescriptionId =
     queryValue(params, "jobDescriptionId") ?? snapshot.jobDescriptions[0]?.id;
@@ -116,8 +119,12 @@ export default async function TailoringPage({
   return (
     <div className="space-y-8">
       <DashboardHeader
-        description="Rewrite individual bullets, preview why the rewrite is better, and save a job-specific resume version."
-        title="Job Tailoring"
+        description={pickText(
+          uiLanguage,
+          "Rewrite individual bullets, preview why the rewrite is better, and save a job-specific resume version.",
+          "改写单条 Bullet，查看优化原因，并保存岗位定向版本。",
+        )}
+        title={pickText(uiLanguage, "Job Tailoring", "岗位定向优化")}
       />
 
       {saved ? (

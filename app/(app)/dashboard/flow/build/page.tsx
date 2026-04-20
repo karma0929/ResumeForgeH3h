@@ -8,6 +8,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { ResumePreview } from "@/components/resume/resume-preview";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -20,6 +21,9 @@ import {
   saveJobDescriptionAction,
   saveResumeAction,
 } from "@/lib/actions/dashboard";
+import { pickText } from "@/lib/i18n";
+import { getUiLanguage } from "@/lib/i18n-server";
+import { buildResumeRenderModel, RESUME_TEMPLATES } from "@/lib/resume-render";
 
 function queryValue(params: Record<string, string | string[] | undefined>, key: string) {
   const value = params[key];
@@ -94,6 +98,7 @@ export default async function BuildFlowPage({
   const params = await searchParams;
   const identity = await getSessionIdentity();
   const snapshot = await getAppSnapshot(identity);
+  const uiLanguage = await getUiLanguage();
 
   const resume = snapshot.resumes[0];
   const profile = resume?.profileData;
@@ -125,7 +130,9 @@ export default async function BuildFlowPage({
     profile &&
       (profile.preferences.resumeStyle ||
         profile.preferences.keywordEmphasis ||
-        profile.preferences.industryPreference),
+        profile.preferences.industryPreference ||
+        profile.preferences.outputLanguage ||
+        profile.preferences.templateId),
   );
   const hasGeneratedDraft = Boolean(resume && resume.originalText.length >= 120 && originalVersion);
   const completionByStep: Record<number, boolean> = {
@@ -190,6 +197,18 @@ export default async function BuildFlowPage({
 
   const parsedEducation = (profile?.education ?? []).slice(0, 3).map(parseEducationLine);
   const parsedProjects = (profile?.projects ?? []).slice(0, 3).map(parseProjectLine);
+  const outputLanguage = profile?.preferences.outputLanguage || "en";
+  const templateId = profile?.preferences.templateId || "classic_ats";
+  const previewModel =
+    originalVersion && resume?.profileData
+      ? buildResumeRenderModel({
+          version: originalVersion,
+          profileData: resume.profileData,
+          requestedLanguage: outputLanguage,
+          requestedTemplate: templateId,
+        })
+      : null;
+  const exportSuffix = `&lang=${encodeURIComponent(outputLanguage)}&template=${encodeURIComponent(templateId)}`;
 
   return (
     <div className="space-y-7">
@@ -200,11 +219,15 @@ export default async function BuildFlowPage({
             href="/dashboard"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to start
+            {pickText(uiLanguage, "Back to start", "返回起点")}
           </Link>
         }
-        description="Complete one section at a time. Most fields are optional, and every step supports save draft."
-        title="Build From Scratch"
+        description={pickText(
+          uiLanguage,
+          "Complete one section at a time. Most fields are optional, and every step supports save draft.",
+          "一次只完成一个步骤。大多数字段均可选，并支持每步保存草稿。",
+        )}
+        title={pickText(uiLanguage, "Build From Scratch", "从零创建")}
       />
 
       {banner ? <StatusBanner {...banner} /> : null}
@@ -942,7 +965,13 @@ export default async function BuildFlowPage({
 
       {!stepLocked && step === 8 ? (
         <Card className="space-y-5 border-slate-200 bg-white/92 p-6">
-          <p className="text-sm text-slate-600">Set lightweight style preferences for generated output.</p>
+          <p className="text-sm text-slate-600">
+            {pickText(
+              uiLanguage,
+              "Set lightweight style preferences for generated output.",
+              "设置输出偏好（可选），用于控制生成语言与模板风格。",
+            )}
+          </p>
           <form action={saveResumeAction} className="space-y-4">
             <input name="currentStep" type="hidden" value="8" />
             <input name="resumeId" type="hidden" value={resume?.id ?? ""} />
@@ -951,7 +980,9 @@ export default async function BuildFlowPage({
             <input name="title" type="hidden" value={resume?.title ?? "Build From Scratch Draft"} />
 
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Resume style</span>
+              <span className="mb-2 block text-sm font-medium text-slate-700">
+                {pickText(uiLanguage, "Resume style", "简历风格")}
+              </span>
               <input
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
                 defaultValue={profile?.preferences.resumeStyle ?? ""}
@@ -960,6 +991,37 @@ export default async function BuildFlowPage({
                 type="text"
               />
             </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-slate-700">
+                  {pickText(uiLanguage, "Resume output language", "简历输出语言")}
+                </span>
+                <select
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                  defaultValue={profile?.preferences.outputLanguage ?? "en"}
+                  name="outputLanguage"
+                >
+                  <option value="en">English</option>
+                  <option value="zh">中文</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-slate-700">
+                  {pickText(uiLanguage, "Template selection", "模板选择")}
+                </span>
+                <select
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                  defaultValue={profile?.preferences.templateId ?? "classic_ats"}
+                  name="templateId"
+                >
+                  {RESUME_TEMPLATES.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {uiLanguage === "zh" ? template.name.zh : template.name.en}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-slate-700">Summary style (optional)</span>
               <input
@@ -1035,7 +1097,7 @@ export default async function BuildFlowPage({
                 Save draft
               </SubmitButton>
               <SubmitButton name="nextStep" pendingLabel="Saving..." value="9">
-                Continue to review
+                {pickText(uiLanguage, "Continue to review", "继续到复核")}
               </SubmitButton>
             </div>
           </form>
@@ -1046,7 +1108,11 @@ export default async function BuildFlowPage({
         <Card className="space-y-6 border-slate-200 bg-white/92 p-6">
           <div>
             <p className="text-sm text-slate-600">
-              Review what you entered, then generate your first resume draft.
+              {pickText(
+                uiLanguage,
+                "Review what you entered, then generate your first resume draft.",
+                "先复核你已填写的信息，再生成首个简历草稿。",
+              )}
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -1110,27 +1176,51 @@ export default async function BuildFlowPage({
               <FileText className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">Generated resume draft</h2>
-              <p className="text-sm text-slate-600">Preview, edit, regenerate, and export from here.</p>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+                {pickText(uiLanguage, "Generated resume draft", "已生成简历草稿")}
+              </h2>
+              <p className="text-sm text-slate-600">
+                {pickText(
+                  uiLanguage,
+                  "Preview, edit, regenerate, and export from here.",
+                  "可在此预览、编辑、重新生成并导出。",
+                )}
+              </p>
             </div>
           </div>
 
           {!hasGeneratedDraft ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-              <p className="text-sm font-semibold">No generated draft yet</p>
-              <p className="mt-1 text-sm">Generate from Step 9 to unlock preview and export.</p>
+              <p className="text-sm font-semibold">
+                {pickText(uiLanguage, "No generated draft yet", "尚未生成草稿")}
+              </p>
+              <p className="mt-1 text-sm">
+                {pickText(
+                  uiLanguage,
+                  "Generate from Step 9 to unlock preview and export.",
+                  "请先在第 9 步生成，随后即可预览与导出。",
+                )}
+              </p>
               <Link className="mt-3 inline-flex items-center gap-1 text-sm font-medium underline" href="/dashboard/flow/build?step=9">
-                Go to review step
+                {pickText(uiLanguage, "Go to review step", "前往复核步骤")}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           ) : (
             <>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Draft preview</p>
-                <pre className="mt-3 max-h-[420px] overflow-auto whitespace-pre-wrap text-sm leading-7 text-slate-700">
-                  {resume?.originalText}
-                </pre>
+              {previewModel ? <ResumePreview model={previewModel} /> : null}
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                <p className="font-medium">
+                  {pickText(uiLanguage, "Current output settings", "当前输出设置")}
+                </p>
+                <p className="mt-2 text-xs text-slate-600">
+                  {pickText(uiLanguage, "Language", "语言")}: {outputLanguage === "zh" ? "中文" : "English"} ·{" "}
+                  {pickText(uiLanguage, "Template", "模板")}:{" "}
+                  {(RESUME_TEMPLATES.find((item) => item.id === templateId)?.name[
+                    uiLanguage === "zh" ? "zh" : "en"
+                  ]) ?? templateId}
+                </p>
               </div>
 
               <form action={saveResumeAction} className="space-y-3">
@@ -1148,7 +1238,7 @@ export default async function BuildFlowPage({
                   />
                 </label>
                 <SubmitButton pendingLabel="Saving draft..." variant="outline">
-                  Save edited draft
+                  {pickText(uiLanguage, "Save edited draft", "保存编辑后的草稿")}
                 </SubmitButton>
               </form>
 
@@ -1159,7 +1249,7 @@ export default async function BuildFlowPage({
                 <SubmitButton pendingLabel="Regenerating..." variant="outline">
                   <span className="inline-flex items-center gap-2">
                     <Sparkles className="h-4 w-4" />
-                    Regenerate
+                    {pickText(uiLanguage, "Regenerate", "重新生成")}
                   </span>
                 </SubmitButton>
               </form>
@@ -1169,33 +1259,35 @@ export default async function BuildFlowPage({
                   <>
                     <a
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                      href={`/api/export?versionId=${originalVersion.id}&format=pdf`}
+                      href={`/api/export?versionId=${originalVersion.id}&format=pdf${exportSuffix}`}
                     >
                       <Download className="h-4 w-4" />
-                      Download PDF
+                      {pickText(uiLanguage, "Download PDF", "下载 PDF")}
                     </a>
                     <a
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                      href={`/api/export?versionId=${originalVersion.id}&format=txt`}
+                      href={`/api/export?versionId=${originalVersion.id}&format=txt${exportSuffix}`}
                     >
                       <Download className="h-4 w-4" />
-                      Download TXT
+                      {pickText(uiLanguage, "Download TXT", "下载 TXT")}
                     </a>
                   </>
                 ) : (
-                  <p className="text-sm text-slate-600">Export will appear after draft generation.</p>
+                  <p className="text-sm text-slate-600">
+                    {pickText(uiLanguage, "Export will appear after draft generation.", "生成草稿后将显示导出入口。")}
+                  </p>
                 )}
                 <Link
                   className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
                   href="/dashboard/versions"
                 >
-                  Open versions
+                  {pickText(uiLanguage, "Open versions", "查看版本")}
                 </Link>
                 <Link
                   className="inline-flex h-10 items-center justify-center rounded-full bg-slate-900 px-4 text-sm font-medium text-white"
                   href="/dashboard/analysis"
                 >
-                  Continue refining
+                  {pickText(uiLanguage, "Continue refining", "继续优化")}
                 </Link>
               </div>
             </>
@@ -1207,7 +1299,7 @@ export default async function BuildFlowPage({
               href="/dashboard/flow/build?step=9"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to review
+              {pickText(uiLanguage, "Back to review", "返回复核")}
             </Link>
           </div>
         </Card>

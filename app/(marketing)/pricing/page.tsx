@@ -6,24 +6,32 @@ import { BILLING_PLANS } from "@/lib/billing/plans";
 import { Card } from "@/components/ui/card";
 import { BillingActionButton } from "@/components/billing/billing-action-button";
 import { allowDevelopmentMocks } from "@/lib/env";
+import { pickText } from "@/lib/i18n";
+import { getUiLanguage } from "@/lib/i18n-server";
 import { formatCurrency } from "@/lib/utils";
 
 export default async function PricingPage() {
   const identity = await getSessionIdentity();
   const snapshot = identity ? await getAppSnapshot(identity) : null;
   const currentPlan = snapshot?.subscription?.plan ?? null;
+  const uiLanguage = await getUiLanguage();
 
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
       <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
         <div className="max-w-3xl">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-sky-700">Pricing</p>
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-sky-700">
+            {pickText(uiLanguage, "Pricing", "定价")}
+          </p>
           <h1 className="mt-6 text-5xl font-semibold tracking-tight text-slate-950">
-            Plans built for real application volume.
+            {pickText(uiLanguage, "Plans built for real application volume.", "为真实投递量设计的订阅方案。")}
           </h1>
           <p className="mt-6 text-lg leading-8 text-slate-600">
-            Start with the free tier, then upgrade when you need durable tailoring, version comparison,
-            and export-ready workflows for an active U.S. job search.
+            {pickText(
+              uiLanguage,
+              "Start with the free tier, then upgrade when you need durable tailoring, version comparison, and export-ready workflows for an active U.S. job search.",
+              "可先使用免费版；当你需要稳定定向优化、版本对比与可导出工作流时再升级。",
+            )}
           </p>
         </div>
 
@@ -33,9 +41,15 @@ export default async function PricingPage() {
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold">Stripe-ready from the start</h2>
+              <h2 className="text-xl font-semibold">
+                {pickText(uiLanguage, "Stripe-ready from the start", "从一开始就支持 Stripe")}
+              </h2>
               <p className="mt-3 text-sm leading-7 text-slate-300">
-                ResumeForge supports Stripe Checkout, customer portal sessions, webhook-backed subscription sync, and server-side feature enforcement.
+                {pickText(
+                  uiLanguage,
+                  "ResumeForge supports Stripe Checkout, customer portal sessions, webhook-backed subscription sync, and server-side feature enforcement.",
+                  "ResumeForge 已接入 Stripe Checkout、客户门户、Webhook 订阅同步与服务端权限控制。",
+                )}
               </p>
             </div>
           </div>
@@ -87,18 +101,18 @@ export default async function PricingPage() {
                 {snapshot ? (
                   isCurrent ? (
                     <div className="inline-flex h-11 w-full items-center justify-center rounded-full border border-slate-200 bg-slate-100 px-4 text-sm font-medium text-slate-600">
-                      Current plan
+                      {pickText(uiLanguage, "Current plan", "当前方案")}
                     </div>
                   ) : requiresPortalDowngrade ? (
                     <Link
                       className="inline-flex h-11 w-full items-center justify-center rounded-full bg-slate-900 px-4 text-sm font-medium text-white"
                       href="/dashboard/billing"
                     >
-                      Manage downgrade in billing
+                      {pickText(uiLanguage, "Manage downgrade in billing", "在账单页管理降级")}
                     </Link>
                   ) : (
                     <BillingActionButton className="w-full" mode="checkout" plan={plan.plan}>
-                      {isFree ? "Switch to Free" : plan.cta}
+                      {isFree ? pickText(uiLanguage, "Switch to Free", "切换到免费版") : plan.cta}
                     </BillingActionButton>
                   )
                 ) : (
@@ -124,7 +138,9 @@ export default async function PricingPage() {
             </div>
             <div>
               <p className="text-sm text-slate-500">Plan comparison</p>
-              <h2 className="text-xl font-semibold text-slate-950">What unlocks as you upgrade</h2>
+              <h2 className="text-xl font-semibold text-slate-950">
+                {pickText(uiLanguage, "What unlocks as you upgrade", "升级后可解锁的能力")}
+              </h2>
             </div>
           </div>
         </div>

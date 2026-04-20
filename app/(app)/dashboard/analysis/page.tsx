@@ -21,6 +21,8 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { runAnalysisAction } from "@/lib/actions/dashboard";
 import { getSessionIdentity } from "@/lib/auth";
 import { getAppSnapshot } from "@/lib/data";
+import { pickText } from "@/lib/i18n";
+import { getUiLanguage } from "@/lib/i18n-server";
 import { getWorkflowAction, getWorkflowState } from "@/lib/onboarding";
 import { getUsageRemaining } from "@/lib/usage";
 import type { ResumeAnalysis } from "@/lib/types";
@@ -38,6 +40,7 @@ export default async function AnalysisPage({
   const params = await searchParams;
   const identity = await getSessionIdentity();
   const snapshot = await getAppSnapshot(identity);
+  const uiLanguage = await getUiLanguage();
   const resumeId = queryValue(params, "resumeId") ?? snapshot.resumes[0]?.id;
   const jobDescriptionId =
     queryValue(params, "jobDescriptionId") ?? snapshot.jobDescriptions[0]?.id;
@@ -82,8 +85,12 @@ export default async function AnalysisPage({
   return (
     <div className="space-y-8">
       <DashboardHeader
-        description="Score the active resume against a target job description and save the analysis snapshot for later review."
-        title="Resume Analysis"
+        description={pickText(
+          uiLanguage,
+          "Score the active resume against a target job description and save the analysis snapshot for later review.",
+          "将当前简历与目标岗位 JD 打分对比，并保存分析快照供后续优化使用。",
+        )}
+        title={pickText(uiLanguage, "Resume Analysis", "简历分析")}
       />
 
       {saved ? (
@@ -143,19 +150,21 @@ export default async function AnalysisPage({
             </select>
           </label>
           <div className="flex items-end">
-            {canRunAnalysis ? (
-              <SubmitButton pendingLabel="Running analysis...">
-                {analysis ? "Run analysis again" : "Run analysis"}
-              </SubmitButton>
-            ) : (
-              <Link
-                className="inline-flex h-11 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-medium text-white"
-                href="/dashboard/billing?usageLimit=analysis&blocked=1"
-              >
-                Upgrade to continue
-              </Link>
-            )}
-          </div>
+                {canRunAnalysis ? (
+                  <SubmitButton pendingLabel="Running analysis...">
+                    {analysis
+                      ? pickText(uiLanguage, "Run analysis again", "重新分析")
+                      : pickText(uiLanguage, "Run analysis", "开始分析")}
+                  </SubmitButton>
+                ) : (
+                  <Link
+                    className="inline-flex h-11 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-medium text-white"
+                    href="/dashboard/billing?usageLimit=analysis&blocked=1"
+                  >
+                    {pickText(uiLanguage, "Upgrade to continue", "升级后继续")}
+                  </Link>
+                )}
+              </div>
         </form>
       </Card>
 

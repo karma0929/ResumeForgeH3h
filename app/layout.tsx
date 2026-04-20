@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Manrope } from "next/font/google";
 import { getLaunchBlockers } from "@/lib/env";
+import { getUiLanguage } from "@/lib/i18n-server";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -19,16 +20,17 @@ export const metadata: Metadata = {
   description: "AI-powered resume optimization SaaS for U.S. job seekers.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const launchBlockers = getLaunchBlockers();
+  const uiLanguage = await getUiLanguage();
 
   return (
     <html
-      lang="en"
+      lang={uiLanguage}
       className={`${manrope.variable} ${ibmPlexMono.variable} h-full antialiased`}
       data-scroll-behavior="smooth"
     >

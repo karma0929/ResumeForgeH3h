@@ -17,6 +17,8 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/noto-sans-sc": "^5.2.9",
     "@prisma/client": "^6.19.3",
     "@react-pdf/renderer": "^4.5.1",
     "clsx": "^2.1.1",

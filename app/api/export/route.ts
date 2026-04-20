@@ -8,6 +8,12 @@ import { hasFeatureAccess } from "@/lib/billing/guards";
 import { getAppSnapshot, getExportableVersion } from "@/lib/data";
 import { ValidationError } from "@/lib/errors";
 import { logEvent } from "@/lib/logger";
+import {
+  buildResumeRenderModel,
+  isResumeOutputLanguage,
+  isResumeTemplateId,
+  renderModelAsPlainText,
+} from "@/lib/resume-render";
 import { slugify } from "@/lib/utils";
 
 export async function GET(request: Request) {
@@ -15,6 +21,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const versionId = searchParams.get("versionId");
     const requestedFormat = searchParams.get("format");
+    const requestedLanguage = searchParams.get("lang");
+    const requestedTemplate = searchParams.get("template");
     const format = requestedFormat === "txt" ? "txt" : requestedFormat === "pdf" || !requestedFormat ? "pdf" : null;
     const identity = await getSessionIdentity();
 
@@ -33,6 +41,12 @@ export async function GET(request: Request) {
     if (!format) {
       throw new ValidationError("Invalid format.");
     }
+    if (requestedLanguage && !isResumeOutputLanguage(requestedLanguage)) {
+      throw new ValidationError("Invalid language.");
+    }
+    if (requestedTemplate && !isResumeTemplateId(requestedTemplate)) {
+      throw new ValidationError("Invalid template.");
+    }
 
     const snapshot = await getAppSnapshot(identity);
 
@@ -48,8 +62,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Version not found" }, { status: 404 });
     }
 
+    const model = buildResumeRenderModel({
+      version,
+      profileData: version.resumeProfileData,
+      requestedLanguage,
+      requestedTemplate,
+    });
+
     if (format === "txt") {
-      return new NextResponse(version.content, {
+      const textOutput = renderModelAsPlainText(model);
+      return new NextResponse(textOutput, {
         headers: {
           "Content-Type": "text/plain; charset=utf-8",
           "Content-Disposition": `attachment; filename="${slugify(version.name)}.txt"`,
@@ -58,7 +80,12 @@ export async function GET(request: Request) {
       });
     }
 
-    const pdf = await renderToBuffer(ResumePdfDocument({ version }));
+    const pdf = await renderToBuffer(
+      ResumePdfDocument({
+        model,
+        title: version.name,
+      }),
+    );
 
     return new NextResponse(new Uint8Array(pdf), {
       headers: {

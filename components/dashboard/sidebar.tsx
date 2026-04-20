@@ -3,18 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Compass, CreditCard, FileText, LayoutDashboard, Settings, Shield, Sparkles } from "lucide-react";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import type { AppUser } from "@/lib/types";
+import type { UILanguage } from "@/lib/types";
 import type { OnboardingProgress } from "@/lib/onboarding";
 import { logoutAction } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { href: "/dashboard", label: "Start", icon: LayoutDashboard },
-  { href: "/dashboard/flow/improve", label: "Improve", icon: FileText },
-  { href: "/dashboard/flow/build", label: "Build", icon: Compass },
-  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
-];
+function getNavItems(language: UILanguage) {
+  return [
+    { href: "/dashboard", label: language === "zh" ? "开始" : "Start", icon: LayoutDashboard },
+    { href: "/dashboard/flow/improve", label: language === "zh" ? "优化" : "Improve", icon: FileText },
+    { href: "/dashboard/flow/build", label: language === "zh" ? "从零创建" : "Build", icon: Compass },
+    { href: "/dashboard/billing", label: language === "zh" ? "账单" : "Billing", icon: CreditCard },
+    { href: "/dashboard/settings", label: language === "zh" ? "设置" : "Settings", icon: Settings },
+  ];
+}
 
 function isActivePath(pathname: string, href: string) {
   if (href === "/dashboard") {
@@ -27,11 +31,14 @@ function isActivePath(pathname: string, href: string) {
 export function DashboardSidebar({
   user,
   onboarding,
+  uiLanguage,
 }: {
   user: AppUser;
   onboarding: OnboardingProgress;
+  uiLanguage: UILanguage;
 }) {
   const pathname = usePathname();
+  const navItems = getNavItems(uiLanguage);
 
   return (
     <aside className="border-b border-slate-200 bg-white lg:min-h-screen lg:border-b-0 lg:border-r lg:bg-slate-50/50">
@@ -42,9 +49,13 @@ export function DashboardSidebar({
           </span>
           <div>
             <p className="text-sm font-semibold">ResumeForge</p>
-            <p className="text-xs text-slate-500">AI resume workspace</p>
+            <p className="text-xs text-slate-500">
+              {uiLanguage === "zh" ? "AI 简历工作台" : "AI resume workspace"}
+            </p>
           </div>
         </Link>
+
+        <LanguageSwitcher currentLanguage={uiLanguage} />
 
         <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-sm font-semibold text-slate-900">{user.name}</p>
@@ -56,9 +67,12 @@ export function DashboardSidebar({
           <div className="rounded-3xl border border-slate-200 bg-white p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Setup</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                  {uiLanguage === "zh" ? "引导" : "Setup"}
+                </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {onboarding.completed}/{onboarding.total} complete
+                  {onboarding.completed}/{onboarding.total}{" "}
+                  {uiLanguage === "zh" ? "已完成" : "complete"}
                 </p>
               </div>
               <span className="text-xs font-medium text-slate-600">{onboarding.percent}%</span>
@@ -70,7 +84,9 @@ export function DashboardSidebar({
               />
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              Finish the first four steps to unlock the fastest application workflow.
+              {uiLanguage === "zh"
+                ? "完成前四步后，可解锁最快的投递工作流。"
+                : "Finish the first four steps to unlock the fastest application workflow."}
             </p>
           </div>
         ) : null}
@@ -113,14 +129,14 @@ export function DashboardSidebar({
                   isActivePath(pathname, "/admin") ? "text-sky-700" : "text-slate-500",
                 )}
               />
-              Admin
+              {uiLanguage === "zh" ? "管理" : "Admin"}
             </Link>
           ) : null}
         </nav>
 
         <form action={logoutAction}>
           <button className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700">
-            Log out
+            {uiLanguage === "zh" ? "退出登录" : "Log out"}
           </button>
         </form>
       </div>

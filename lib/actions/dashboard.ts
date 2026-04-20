@@ -462,6 +462,26 @@ export async function saveResumeAction(formData: FormData) {
           { max: 240 },
           existingProfile?.preferences.industryPreference ?? "",
         ),
+        outputLanguage: assertEnumValue(
+          readValueWithFallback(
+            formData,
+            "outputLanguage",
+            { max: 10 },
+            existingProfile?.preferences.outputLanguage ?? "",
+          ),
+          ["", "en", "zh"] as const,
+          "outputLanguage",
+        ),
+        templateId: assertEnumValue(
+          readValueWithFallback(
+            formData,
+            "templateId",
+            { max: 40 },
+            existingProfile?.preferences.templateId ?? "",
+          ),
+          ["", "classic_ats", "modern_professional", "technical_product"] as const,
+          "templateId",
+        ),
       },
       notes: mergedNotes,
     };

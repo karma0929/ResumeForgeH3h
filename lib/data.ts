@@ -916,13 +916,45 @@ export async function getExportableVersion(versionId: string) {
     async () => {
       const version = await prisma.resumeVersion.findUnique({
         where: { id: versionId },
+        include: {
+          resume: {
+            select: {
+              intakeMode: true,
+              profileData: true,
+            },
+          },
+        },
       });
 
-      return version ? mapVersion(version) : null;
+      if (!version) {
+        return null;
+      }
+
+      const mapped = mapVersion(version);
+      const intakeMode = version.resume?.intakeMode === "guided" ? "guided" : "quick";
+      const resumeProfileData = version.resume?.profileData
+        ? normalizeResumeProfileData(
+            version.resume.profileData as unknown as ResumeProfileData,
+            intakeMode,
+          )
+        : null;
+
+      return {
+        ...mapped,
+        resumeProfileData,
+      };
     },
     async () => {
       const snapshot = getFallbackSnapshot();
-      return snapshot.resumeVersions.find((version) => version.id === versionId) ?? snapshot.resumeVersions[0];
+      const version =
+        snapshot.resumeVersions.find((item) => item.id === versionId) ??
+        snapshot.resumeVersions[0];
+      const resumeProfileData = snapshot.resumes.find((item) => item.id === version.resumeId)?.profileData ?? null;
+
+      return {
+        ...version,
+        resumeProfileData,
+      };
     },
   );
 }

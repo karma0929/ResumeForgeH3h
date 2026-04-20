@@ -26,6 +26,12 @@ export type CareerLevel =
   | "staff_plus"
   | "manager"
   | "director_plus";
+export type UILanguage = "en" | "zh";
+export type ResumeOutputLanguage = "en" | "zh";
+export type ResumeTemplateId =
+  | "classic_ats"
+  | "modern_professional"
+  | "technical_product";
 
 export interface ResumeSection {
   key: string;
@@ -122,6 +128,8 @@ export interface ResumeProfileData {
     resumeStyle: string;
     keywordEmphasis: string;
     industryPreference: string;
+    outputLanguage: ResumeOutputLanguage | "";
+    templateId: ResumeTemplateId | "";
   };
   notes: string;
 }

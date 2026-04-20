@@ -1,7 +1,9 @@
 import type {
   CareerLevel,
   ResumeIntakeMode,
+  ResumeOutputLanguage,
   ResumeProfileData,
+  ResumeTemplateId,
   TargetRoleBriefData,
 } from "@/lib/types";
 
@@ -11,6 +13,189 @@ function clean(value: string | null | undefined) {
 
 function cleanList(values: Array<string | null | undefined>) {
   return values.map((value) => clean(value)).filter(Boolean);
+}
+
+function dedupeStrings(values: string[]) {
+  const seen = new Set<string>();
+  const normalized = values
+    .map((value) => value.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .filter((value) => {
+      const key = value.toLowerCase();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+
+  return normalized;
+}
+
+function normalizeOutputLanguage(value: string | null | undefined): ResumeOutputLanguage | "" {
+  if (value === "zh" || value === "en") {
+    return value;
+  }
+  return "";
+}
+
+function normalizeTemplateId(value: string | null | undefined): ResumeTemplateId | "" {
+  if (
+    value === "classic_ats" ||
+    value === "modern_professional" ||
+    value === "technical_product"
+  ) {
+    return value;
+  }
+  return "";
+}
+
+function detectContentLanguage(value: string): ResumeOutputLanguage {
+  return /[\u3400-\u9fff]/.test(value) ? "zh" : "en";
+}
+
+function profileHasStructuredContent(profile: ResumeProfileData) {
+  return Boolean(
+    clean(profile.basicProfile.fullName) ||
+      clean(profile.professionalSummary) ||
+      profile.skills.length > 0 ||
+      profile.workExperiences.length > 0 ||
+      profile.education.length > 0 ||
+      profile.projects.length > 0,
+  );
+}
+
+const EN_SECTION_PLACEHOLDERS = new Set([
+  "summary",
+  "skills",
+  "experience",
+  "work experience",
+  "education",
+  "projects",
+  "certifications",
+  "awards",
+  "links",
+]);
+
+const ZH_SECTION_PLACEHOLDERS = new Set([
+  "摘要",
+  "个人摘要",
+  "技能",
+  "经验",
+  "工作经验",
+  "教育",
+  "项目",
+  "证书",
+  "奖项",
+  "链接",
+]);
+
+function isPlaceholderValue(value: string) {
+  const normalized = value.replace(/[:：]/g, "").trim().toLowerCase();
+  return EN_SECTION_PLACEHOLDERS.has(normalized) || ZH_SECTION_PLACEHOLDERS.has(value.trim());
+}
+
+function sanitizeFallbackResumeText(value: string) {
+  const lines = value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line, index, arr) => {
+      if (index === 0) {
+        return true;
+      }
+      return line.toLowerCase() !== arr[index - 1]?.toLowerCase();
+    })
+    .filter((line) => !isPlaceholderValue(line));
+
+  return lines.join("\n").trim();
+}
+
+function toBullets(value: string) {
+  if (!value) {
+    return [];
+  }
+
+  const rows = value
+    .split(/\r?\n|[;；]\s*/)
+    .map((item) => item.replace(/^[-*•]\s*/, "").trim())
+    .filter(Boolean);
+
+  return dedupeStrings(rows);
+}
+
+function sectionTitle(key: string, language: ResumeOutputLanguage) {
+  const zh = {
+    summary: "个人摘要",
+    skills: "技能",
+    experience: "工作经历",
+    education: "教育背景",
+    projects: "项目经历",
+    certifications: "证书",
+    awards: "奖项",
+    links: "链接",
+  } as const;
+
+  const en = {
+    summary: "SUMMARY",
+    skills: "SKILLS",
+    experience: "EXPERIENCE",
+    education: "EDUCATION",
+    projects: "PROJECTS",
+    certifications: "CERTIFICATIONS",
+    awards: "AWARDS",
+    links: "LINKS",
+  } as const;
+
+  if (language === "zh") {
+    return zh[key as keyof typeof zh] ?? key;
+  }
+
+  return en[key as keyof typeof en] ?? key.toUpperCase();
+}
+
+function formatTargetLabel(value: string, language: ResumeOutputLanguage) {
+  if (!value) {
+    return "";
+  }
+  return language === "zh" ? `目标岗位：${value}` : `Target: ${value}`;
+}
+
+function synthesizeSummary(profile: ResumeProfileData, language: ResumeOutputLanguage) {
+  const currentTitle = clean(profile.basicProfile.currentTitle);
+  const targetTitle = clean(profile.basicProfile.targetTitle);
+  const years = clean(profile.basicProfile.yearsExperience);
+  const location = clean(profile.basicProfile.location);
+
+  if (language === "zh") {
+    const parts = cleanList([
+      years ? `${years}年经验` : "",
+      currentTitle || targetTitle,
+      location,
+    ]);
+    if (parts.length === 0) {
+      return "";
+    }
+
+    return targetTitle && currentTitle !== targetTitle
+      ? `${parts.join("，")}。当前求职方向为${targetTitle}，重点突出可量化成果与岗位匹配能力。`
+      : `${parts.join("，")}。重点突出可量化成果与岗位匹配能力。`;
+  }
+
+  const head = cleanList([
+    years ? `${years} years of experience` : "",
+    currentTitle || targetTitle,
+    location,
+  ]);
+
+  if (head.length === 0) {
+    return "";
+  }
+
+  const targetSentence =
+    targetTitle && currentTitle !== targetTitle ? ` targeting ${targetTitle}` : "";
+
+  return `${head.join(" • ")}${targetSentence}. Focused on measurable impact and role-relevant execution.`;
 }
 
 export function splitMultiline(value: string | null | undefined) {
@@ -63,6 +248,8 @@ export function createDefaultResumeProfileData(mode: ResumeIntakeMode = "quick")
       resumeStyle: "",
       keywordEmphasis: "",
       industryPreference: "",
+      outputLanguage: "",
+      templateId: "",
     },
     notes: "",
   };
@@ -133,6 +320,8 @@ export function normalizeResumeProfileData(
       resumeStyle: clean(value.preferences?.resumeStyle),
       keywordEmphasis: clean(value.preferences?.keywordEmphasis),
       industryPreference: clean(value.preferences?.industryPreference),
+      outputLanguage: normalizeOutputLanguage(value.preferences?.outputLanguage),
+      templateId: normalizeTemplateId(value.preferences?.templateId),
     },
     notes: clean(value.notes),
   };
@@ -268,92 +457,125 @@ export function buildResumeTextFromProfile(input: {
   fallbackText?: string;
 }) {
   const fallbackText = clean(input.fallbackText);
+  const { profile } = input;
+  const outputLanguage =
+    profile.preferences.outputLanguage ||
+    detectContentLanguage(
+      [
+        profile.professionalSummary,
+        profile.basicProfile.fullName,
+        profile.basicProfile.currentTitle,
+        profile.basicProfile.targetTitle,
+        profile.notes,
+        fallbackText,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
 
-  if (fallbackText.length >= 40) {
-    return fallbackText;
+  if (!profileHasStructuredContent(profile) && fallbackText.length >= 40) {
+    return sanitizeFallbackResumeText(fallbackText);
   }
 
-  const { profile } = input;
-
   const lines: string[] = [];
-  const headerName = profile.basicProfile.fullName || input.title || "Resume Profile";
+  const headerName = profile.basicProfile.fullName || input.title || (outputLanguage === "zh" ? "简历草稿" : "Resume Draft");
   lines.push(headerName);
 
   const headerMeta = cleanList([
     profile.basicProfile.currentTitle,
     profile.basicProfile.location,
-    profile.basicProfile.targetTitle ? `Target: ${profile.basicProfile.targetTitle}` : "",
+    formatTargetLabel(profile.basicProfile.targetTitle, outputLanguage),
   ]);
 
   if (headerMeta.length > 0) {
-    lines.push(headerMeta.join(" | "));
+    lines.push(headerMeta.join(outputLanguage === "zh" ? " ｜ " : " | "));
   }
 
-  if (profile.professionalSummary) {
-    lines.push("");
-    lines.push("SUMMARY");
-    lines.push(profile.professionalSummary);
+  const links = cleanList([
+    profile.links.linkedIn ? `LinkedIn: ${profile.links.linkedIn}` : "",
+    profile.links.github ? `GitHub: ${profile.links.github}` : "",
+    profile.links.portfolio ? `${outputLanguage === "zh" ? "作品集" : "Portfolio"}: ${profile.links.portfolio}` : "",
+  ]);
+  if (links.length > 0) {
+    lines.push(links.join(outputLanguage === "zh" ? " ｜ " : " | "));
   }
 
-  if (profile.skills.length > 0) {
+  const summary = profile.professionalSummary || synthesizeSummary(profile, outputLanguage);
+  if (summary) {
     lines.push("");
-    lines.push("SKILLS");
-    lines.push(profile.skills.join(", "));
+    lines.push(sectionTitle("summary", outputLanguage));
+    lines.push(summary);
+  }
+
+  const skills = dedupeStrings(profile.skills.filter((item) => !isPlaceholderValue(item)));
+  if (skills.length > 0) {
+    lines.push("");
+    lines.push(sectionTitle("skills", outputLanguage));
+    lines.push(skills.join(", "));
   }
 
   if (profile.workExperiences.length > 0) {
     lines.push("");
-    lines.push("EXPERIENCE");
+    lines.push(sectionTitle("experience", outputLanguage));
+
     profile.workExperiences.forEach((entry) => {
       const header = cleanList([
         entry.company,
         entry.title,
         entry.location,
         entry.dates,
-      ]).join(" | ");
+      ]).join(outputLanguage === "zh" ? " ｜ " : " | ");
       if (header) {
         lines.push(header);
       }
 
-      cleanList([entry.responsibilities, entry.achievements, entry.quantifiedImpact]).forEach((item) => {
+      const bullets = dedupeStrings(
+        cleanList([
+          ...toBullets(entry.achievements),
+          ...toBullets(entry.responsibilities),
+          ...toBullets(entry.quantifiedImpact),
+        ]).filter((item) => !isPlaceholderValue(item)),
+      );
+
+      bullets.forEach((item) => {
         lines.push(`- ${item}`);
       });
     });
   }
 
-  if (profile.education.length > 0) {
+  const education = dedupeStrings(profile.education.filter((item) => !isPlaceholderValue(item)));
+  if (education.length > 0) {
     lines.push("");
-    lines.push("EDUCATION");
-    profile.education.forEach((item) => lines.push(`- ${item}`));
+    lines.push(sectionTitle("education", outputLanguage));
+    education.forEach((item) => lines.push(`- ${item}`));
   }
 
-  if (profile.projects.length > 0) {
+  const projects = dedupeStrings(profile.projects.filter((item) => !isPlaceholderValue(item)));
+  if (projects.length > 0) {
     lines.push("");
-    lines.push("PROJECTS");
-    profile.projects.forEach((item) => lines.push(`- ${item}`));
+    lines.push(sectionTitle("projects", outputLanguage));
+    projects.forEach((item) => lines.push(`- ${item}`));
   }
 
-  if (profile.certifications.length > 0) {
+  const certifications = dedupeStrings(
+    profile.certifications.filter((item) => !isPlaceholderValue(item)),
+  );
+  if (certifications.length > 0) {
     lines.push("");
-    lines.push("CERTIFICATIONS");
-    profile.certifications.forEach((item) => lines.push(`- ${item}`));
+    lines.push(sectionTitle("certifications", outputLanguage));
+    certifications.forEach((item) => lines.push(`- ${item}`));
   }
 
-  if (profile.awards.length > 0) {
+  const awards = dedupeStrings(profile.awards.filter((item) => !isPlaceholderValue(item)));
+  if (awards.length > 0) {
     lines.push("");
-    lines.push("AWARDS");
-    profile.awards.forEach((item) => lines.push(`- ${item}`));
+    lines.push(sectionTitle("awards", outputLanguage));
+    awards.forEach((item) => lines.push(`- ${item}`));
   }
-
-  const links = cleanList([
-    profile.links.linkedIn ? `LinkedIn: ${profile.links.linkedIn}` : "",
-    profile.links.github ? `GitHub: ${profile.links.github}` : "",
-    profile.links.portfolio ? `Portfolio: ${profile.links.portfolio}` : "",
-  ]);
 
   if (links.length > 0) {
     lines.push("");
-    lines.push("LINKS");
+    lines.push(sectionTitle("links", outputLanguage));
     links.forEach((item) => lines.push(`- ${item}`));
   }
 
@@ -417,6 +639,12 @@ export function buildJobDescriptionText(input: {
     lines.push("");
     lines.push("CONTEXT");
     context.forEach((item) => lines.push(`- ${item}`));
+  }
+
+  if (input.brief.emphasizeKeywords.length > 0) {
+    lines.push("");
+    lines.push("KEYWORDS TO EMPHASIZE");
+    lines.push(input.brief.emphasizeKeywords.join(", "));
   }
 
   if (input.brief.recruiterNotes) {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, GitCompareArrows, Layers3 } from "lucide-react";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { ResumePreview } from "@/components/resume/resume-preview";
 import { VersionCompare } from "@/components/dashboard/version-compare";
 import { WorkflowStepper } from "@/components/dashboard/workflow-stepper";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,15 @@ import { StatusBanner } from "@/components/ui/status-banner";
 import { getSessionIdentity } from "@/lib/auth";
 import { hasFeatureAccess } from "@/lib/billing/guards";
 import { getAppSnapshot } from "@/lib/data";
+import { pickText } from "@/lib/i18n";
+import { getUiLanguage } from "@/lib/i18n-server";
 import { getWorkflowAction, getWorkflowState } from "@/lib/onboarding";
+import {
+  buildResumeRenderModel,
+  isResumeOutputLanguage,
+  isResumeTemplateId,
+  RESUME_TEMPLATES,
+} from "@/lib/resume-render";
 import { formatDate } from "@/lib/utils";
 
 function queryValue(params: Record<string, string | string[] | undefined>, key: string) {
@@ -27,6 +36,7 @@ export default async function VersionsPage({
   const params = await searchParams;
   const identity = await getSessionIdentity();
   const snapshot = await getAppSnapshot(identity);
+  const uiLanguage = await getUiLanguage();
   const exported = queryValue(params, "exported");
   const leftId = queryValue(params, "leftId") ?? snapshot.resumeVersions[0]?.id;
   const rightId =
@@ -40,14 +50,35 @@ export default async function VersionsPage({
     snapshot.resumeVersions[0];
   const canCompare = hasFeatureAccess(snapshot.subscription?.plan, "version_compare");
   const canExport = hasFeatureAccess(snapshot.subscription?.plan, "priority_export");
+  const leftResume = left ? snapshot.resumes.find((item) => item.id === left.resumeId) : null;
+  const selectedLanguage = isResumeOutputLanguage(queryValue(params, "lang"))
+    ? (queryValue(params, "lang") as "en" | "zh")
+    : leftResume?.profileData?.preferences.outputLanguage || "en";
+  const selectedTemplate = isResumeTemplateId(queryValue(params, "template"))
+    ? (queryValue(params, "template") as "classic_ats" | "modern_professional" | "technical_product")
+    : leftResume?.profileData?.preferences.templateId || "classic_ats";
+  const previewModel =
+    left && leftResume?.profileData
+      ? buildResumeRenderModel({
+          version: left,
+          profileData: leftResume.profileData,
+          requestedLanguage: selectedLanguage,
+          requestedTemplate: selectedTemplate,
+        })
+      : null;
+  const exportSuffix = `&lang=${encodeURIComponent(selectedLanguage)}&template=${encodeURIComponent(selectedTemplate)}`;
   const workflow = getWorkflowState(snapshot);
   const nextAction = getWorkflowAction(snapshot);
 
   return (
     <div className="space-y-8">
       <DashboardHeader
-        description="Compare saved resume versions side by side and export the one you want to submit."
-        title="Resume Versions"
+        description={pickText(
+          uiLanguage,
+          "Compare saved resume versions side by side and export the one you want to submit.",
+          "并排对比已保存的简历版本，并导出最终投递版本。",
+        )}
+        title={pickText(uiLanguage, "Resume Versions", "简历版本")}
       />
 
       {exported ? (
@@ -62,6 +93,52 @@ export default async function VersionsPage({
 
       {snapshot.resumeVersions.length > 0 ? (
         <>
+          <Card>
+            <p className="text-sm text-slate-500">
+              {pickText(uiLanguage, "Preview and export settings", "预览与导出设置")}
+            </p>
+            <form className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_auto]" method="get">
+              <input name="leftId" type="hidden" value={left?.id ?? ""} />
+              <input name="rightId" type="hidden" value={right?.id ?? ""} />
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-slate-700">
+                  {pickText(uiLanguage, "Resume output language", "简历输出语言")}
+                </span>
+                <select
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                  defaultValue={selectedLanguage}
+                  name="lang"
+                >
+                  <option value="en">English</option>
+                  <option value="zh">中文</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-slate-700">
+                  {pickText(uiLanguage, "Template", "模板")}
+                </span>
+                <select
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                  defaultValue={selectedTemplate}
+                  name="template"
+                >
+                  {RESUME_TEMPLATES.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {uiLanguage === "zh" ? template.name.zh : template.name.en}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex items-end">
+                <button className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800">
+                  {pickText(uiLanguage, "Update preview", "更新预览")}
+                </button>
+              </div>
+            </form>
+          </Card>
+
+          {previewModel ? <ResumePreview model={previewModel} /> : null}
+
           <Card>
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
@@ -154,9 +231,9 @@ export default async function VersionsPage({
                     {canExport ? (
                       <Link
                         className="inline-flex h-10 items-center justify-center rounded-full bg-slate-900 px-4 text-sm font-medium text-white"
-                        href={`/api/export?versionId=${version.id}&format=pdf`}
+                        href={`/api/export?versionId=${version.id}&format=pdf${exportSuffix}`}
                       >
-                        Export PDF
+                        {pickText(uiLanguage, "Export PDF", "导出 PDF")}
                       </Link>
                     ) : (
                       <Link
