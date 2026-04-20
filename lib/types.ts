@@ -91,6 +91,21 @@ export interface TailoredResumeOutput {
   score: number;
 }
 
+export interface ResumeDraftSection {
+  key: string;
+  title: string;
+  lines: string[];
+  bullets: string[];
+}
+
+export interface ResumeDraftOutput {
+  name: string;
+  summary: string;
+  sections: ResumeDraftSection[];
+  content: string;
+  qualityNotes: string[];
+}
+
 export interface ResumeWorkExperienceEntry {
   company: string;
   title: string;

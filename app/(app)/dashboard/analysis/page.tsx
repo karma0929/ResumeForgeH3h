@@ -41,6 +41,7 @@ export default async function AnalysisPage({
   const identity = await getSessionIdentity();
   const snapshot = await getAppSnapshot(identity);
   const uiLanguage = await getUiLanguage();
+  const t = (en: string, zh: string) => pickText(uiLanguage, en, zh);
   const resumeId = queryValue(params, "resumeId") ?? snapshot.resumes[0]?.id;
   const jobDescriptionId =
     queryValue(params, "jobDescriptionId") ?? snapshot.jobDescriptions[0]?.id;
@@ -69,14 +70,17 @@ export default async function AnalysisPage({
   const quickWins = analysis
     ? [
         analysis.missingKeywords.length > 0
-          ? `Work ${analysis.missingKeywords[0]} into your summary, skills, or strongest project bullet.`
-          : "Keyword coverage is in good shape. Focus on making impact clearer.",
+          ? t(
+              `Work ${analysis.missingKeywords[0]} into your summary, skills, or strongest project bullet.`,
+              `把 ${analysis.missingKeywords[0]} 融入摘要、技能或最强项目要点中。`,
+            )
+          : t("Keyword coverage is in good shape. Focus on making impact clearer.", "关键词覆盖度不错，下一步重点增强成果表达。"),
         analysis.impact < 75
-          ? "Increase quantified outcomes so recruiters can quickly see results."
-          : "Your impact signal is solid. Tighten wording to make it even easier to skim.",
+          ? t("Increase quantified outcomes so recruiters can quickly see results.", "增加量化成果，让招聘方更快看到结果。")
+          : t("Your impact signal is solid. Tighten wording to make it even easier to skim.", "影响力表达已经不错，继续压缩措辞以提升可读性。"),
         analysis.clarity < 75
-          ? "Shorten dense bullets and keep each line scoped to one outcome."
-          : "Clarity is working. Preserve this structure in every tailored version.",
+          ? t("Shorten dense bullets and keep each line scoped to one outcome.", "缩短过密表述，每行只聚焦一个结果。")
+          : t("Clarity is working. Preserve this structure in every tailored version.", "清晰度表现良好，在后续定制版本中保持该结构。"),
       ]
     : [];
   const workflow = getWorkflowState(snapshot);
@@ -95,8 +99,11 @@ export default async function AnalysisPage({
 
       {saved ? (
         <StatusBanner
-          description="The latest analysis snapshot is now recorded and ready to reference while tailoring bullets or versions."
-          title="Analysis snapshot saved"
+          description={t(
+            "The latest analysis snapshot is now recorded and ready to reference while tailoring bullets or versions.",
+            "最新分析快照已保存，可在改写要点和生成版本时直接引用。",
+          )}
+          title={t("Analysis snapshot saved", "分析快照已保存")}
           tone="success"
         />
       ) : null}
@@ -104,15 +111,18 @@ export default async function AnalysisPage({
       {error ? (
         <StatusBanner
           description={error}
-          title="Analysis unavailable"
+          title={t("Analysis unavailable", "分析暂不可用")}
           tone="warning"
         />
       ) : null}
 
       {ran ? (
         <StatusBanner
-          description="ResumeForge scored your active resume against the selected role and updated your latest analysis state."
-          title="Analysis complete"
+          description={t(
+            "ResumeForge scored your active resume against the selected role and updated your latest analysis state.",
+            "ResumeForge 已完成当前简历与目标岗位的评分，并更新了最新分析状态。",
+          )}
+          title={t("Analysis complete", "分析完成")}
           tone="success"
         />
       ) : null}
@@ -122,7 +132,7 @@ export default async function AnalysisPage({
       <Card>
         <form action={runAnalysisAction} className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
           <label className="block">
-            <span className="mb-2 block text-sm font-medium text-slate-700">Resume</span>
+            <span className="mb-2 block text-sm font-medium text-slate-700">{t("Resume", "简历")}</span>
             <select
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
               defaultValue={resume?.id}
@@ -136,7 +146,7 @@ export default async function AnalysisPage({
             </select>
           </label>
           <label className="block">
-            <span className="mb-2 block text-sm font-medium text-slate-700">Job description</span>
+            <span className="mb-2 block text-sm font-medium text-slate-700">{t("Job description", "岗位描述")}</span>
             <select
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
               defaultValue={jobDescription?.id}
@@ -151,17 +161,15 @@ export default async function AnalysisPage({
           </label>
           <div className="flex items-end">
                 {canRunAnalysis ? (
-                  <SubmitButton pendingLabel="Running analysis...">
-                    {analysis
-                      ? pickText(uiLanguage, "Run analysis again", "重新分析")
-                      : pickText(uiLanguage, "Run analysis", "开始分析")}
+                  <SubmitButton pendingLabel={t("Running analysis...", "正在分析...")}>
+                    {analysis ? t("Run analysis again", "重新分析") : t("Run analysis", "开始分析")}
                   </SubmitButton>
                 ) : (
                   <Link
                     className="inline-flex h-11 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-medium text-white"
                     href="/dashboard/billing?usageLimit=analysis&blocked=1"
                   >
-                    {pickText(uiLanguage, "Upgrade to continue", "升级后继续")}
+                    {t("Upgrade to continue", "升级后继续")}
                   </Link>
                 )}
               </div>
@@ -171,10 +179,16 @@ export default async function AnalysisPage({
       <UsageMeterCard
         description={
           analysisRemaining === null
-            ? "Your current plan includes unlimited resume-to-JD analysis runs."
-            : `${analysisRemaining} analysis ${analysisRemaining === 1 ? "run" : "runs"} left on the free plan.`
+            ? t(
+                "Your current plan includes unlimited resume-to-JD analysis runs.",
+                "当前套餐包含不限次简历与 JD 分析。",
+              )
+            : t(
+                `${analysisRemaining} analysis ${analysisRemaining === 1 ? "run" : "runs"} left on the free plan.`,
+                `免费版剩余 ${analysisRemaining} 次分析机会。`,
+              )
         }
-        label="Analysis usage"
+        label={t("Analysis usage", "分析用量")}
         limit={analysisRemaining === null ? null : snapshot.usage.analysesUsed + analysisRemaining}
         used={snapshot.usage.analysesUsed}
       />
@@ -184,58 +198,68 @@ export default async function AnalysisPage({
           <ScoreSummary
             analysis={analysis}
             targetLabel={`${jobDescription.company} · ${jobDescription.role}`}
+            uiLanguage={uiLanguage}
           />
 
           <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
             <Card className="bg-gradient-to-br from-white to-slate-50">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-sky-700">Hiring readout</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-sky-700">{t("Hiring readout", "招聘视角解读")}</p>
                   <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-                    ResumeForge recruiter summary
+                    {t("ResumeForge recruiter summary", "ResumeForge 招聘结论摘要")}
                   </h2>
                 </div>
                 <Badge className="bg-slate-900 text-white">
                   {analysis.overall >= 80
-                    ? "Likely shortlist"
+                    ? t("Likely shortlist", "有望进入 shortlist")
                     : analysis.overall >= 70
-                      ? "Needs polish"
-                      : "At risk"}
+                      ? t("Needs polish", "仍需打磨")
+                      : t("At risk", "风险较高")}
                 </Badge>
               </div>
               <div className="mt-6 grid gap-4 sm:grid-cols-3">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Matched</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{t("Matched", "已匹配")}</p>
                   <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
                     {analysis.matchedKeywords.length}
                   </p>
-                  <p className="mt-2 text-sm text-slate-600">keywords aligned to the JD</p>
+                  <p className="mt-2 text-sm text-slate-600">{t("keywords aligned to the JD", "与 JD 对齐的关键词")}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Missing</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{t("Missing", "缺失")}</p>
                   <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
                     {analysis.missingKeywords.length}
                   </p>
-                  <p className="mt-2 text-sm text-slate-600">keywords still underrepresented</p>
+                  <p className="mt-2 text-sm text-slate-600">{t("keywords still underrepresented", "仍需补强的关键词")}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Suggestions</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{t("Suggestions", "建议项")}</p>
                   <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
                     {analysis.suggestions.length}
                   </p>
-                  <p className="mt-2 text-sm text-slate-600">recommended edits to prioritize</p>
+                  <p className="mt-2 text-sm text-slate-600">{t("recommended edits to prioritize", "建议优先处理的改动")}</p>
                 </div>
               </div>
               <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-5">
                 <p className="text-sm font-medium text-slate-900">
-                  What a recruiter would notice first
+                  {t("What a recruiter would notice first", "招聘方最先会看到什么")}
                 </p>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
                   {analysis.overall >= 80
-                    ? "The resume already maps well to the role. The strongest lever now is making impact and role-specific keywords even more obvious in the first scan."
+                    ? t(
+                        "The resume already maps well to the role. The strongest lever now is making impact and role-specific keywords even more obvious in the first scan.",
+                        "你的简历已经与目标岗位较好匹配。下一步应在首屏更突出成果与岗位关键词。",
+                      )
                     : analysis.overall >= 70
-                      ? "The foundation is credible, but the resume is not yet telling the tightest story for this specific role. Close the keyword and impact gaps first."
-                      : "There is enough relevant experience here, but the resume is underselling fit. The current wording is likely leaving recruiter confidence on the table."}
+                      ? t(
+                          "The foundation is credible, but the resume is not yet telling the tightest story for this specific role. Close the keyword and impact gaps first.",
+                          "基础是可信的，但对该岗位的叙事还不够紧。请优先补齐关键词和成果表达差距。",
+                        )
+                      : t(
+                          "There is enough relevant experience here, but the resume is underselling fit. The current wording is likely leaving recruiter confidence on the table.",
+                          "你有相关经历，但简历对匹配度表达偏弱，当前措辞可能削弱招聘方信心。",
+                        )}
                 </p>
               </div>
               {!canRunAnalysis ? <div className="mt-6"><UsageLimitPrompt compact action="analysis" /></div> : null}
@@ -248,7 +272,7 @@ export default async function AnalysisPage({
                 </div>
                 <div>
                   <p className="text-sm text-slate-500">Priority actions</p>
-                  <p className="text-lg font-semibold text-slate-950">What to fix next</p>
+                  <p className="text-lg font-semibold text-slate-950">{t("What to fix next", "下一步修复重点")}</p>
                 </div>
               </div>
               <div className="mt-6 space-y-5">
@@ -259,20 +283,23 @@ export default async function AnalysisPage({
                         {index + 1}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-900">Recommended next step</p>
+                        <p className="text-sm font-medium text-slate-900">{t("Recommended next step", "推荐下一步")}</p>
                         <p className="mt-2 text-sm leading-7 text-slate-600">{item}</p>
                       </div>
                     </div>
                   </div>
                 ))}
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm leading-7 text-slate-600">
-                  Move directly into tailoring once you save this snapshot so rewrites stay anchored to the same target JD.
+                  {t(
+                    "Move directly into tailoring once you save this snapshot so rewrites stay anchored to the same target JD.",
+                    "保存分析快照后，建议直接进入定制改写，以确保改写始终围绕同一目标 JD。",
+                  )}
                 </div>
                 <Link
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-sm font-medium text-slate-800"
                   href={`/dashboard/tailoring?resumeId=${resume.id}&jobDescriptionId=${jobDescription.id}`}
                 >
-                  Open tailoring workspace
+                  {t("Open tailoring workspace", "打开定制工作区")}
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
@@ -286,15 +313,15 @@ export default async function AnalysisPage({
                   <CheckCircle2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">Keyword alignment</p>
+                  <p className="text-sm text-slate-500">{t("Keyword alignment", "关键词匹配")}</p>
                   <p className="text-lg font-semibold text-slate-950">
-                    Matched vs missing signals
+                    {t("Matched vs missing signals", "匹配与缺失信号对比")}
                   </p>
                 </div>
               </div>
               <div className="mt-6 grid gap-4 lg:grid-cols-2">
                 <div className="rounded-3xl border border-emerald-100 bg-emerald-50/70 p-5">
-                  <p className="text-sm font-medium text-emerald-800">Matched keywords</p>
+                  <p className="text-sm font-medium text-emerald-800">{t("Matched keywords", "已匹配关键词")}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {topMatchedKeywords.length > 0 ? (
                       topMatchedKeywords.map((keyword) => (
@@ -304,13 +331,13 @@ export default async function AnalysisPage({
                       ))
                     ) : (
                       <span className="text-sm text-emerald-800/80">
-                        No strong keyword matches yet.
+                        {t("No strong keyword matches yet.", "尚无明显关键词匹配。")}
                       </span>
                     )}
                   </div>
                 </div>
                 <div className="rounded-3xl border border-amber-100 bg-amber-50/80 p-5">
-                  <p className="text-sm font-medium text-amber-900">Missing keywords</p>
+                  <p className="text-sm font-medium text-amber-900">{t("Missing keywords", "缺失关键词")}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {topMissingKeywords.length > 0 ? (
                       topMissingKeywords.map((keyword) => (
@@ -320,14 +347,14 @@ export default async function AnalysisPage({
                       ))
                     ) : (
                       <span className="text-sm text-amber-900/80">
-                        No major keyword gaps detected.
+                        {t("No major keyword gaps detected.", "未检测到明显关键词缺口。")}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
               <div className="mt-6">
-                <p className="text-sm font-medium text-slate-900">Score breakdown</p>
+                <p className="text-sm font-medium text-slate-900">{t("Score breakdown", "评分拆解")}</p>
                 <div className="mt-4 space-y-5">
                   {analysis.categories.map((category) => (
                     <div key={category.label}>
@@ -350,8 +377,8 @@ export default async function AnalysisPage({
                     <FileSearch className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-sm text-slate-500">Strengths</p>
-                    <p className="text-lg font-semibold text-slate-950">What is already working</p>
+                    <p className="text-sm text-slate-500">{t("Strengths", "优势项")}</p>
+                    <p className="text-lg font-semibold text-slate-950">{t("What is already working", "当前有效项")}</p>
                   </div>
                 </div>
                 <div className="mt-5 space-y-3">
@@ -372,9 +399,9 @@ export default async function AnalysisPage({
                     <WandSparkles className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-sm text-slate-500">Suggested edits</p>
+                    <p className="text-sm text-slate-500">{t("Suggested edits", "建议改动")}</p>
                     <p className="text-lg font-semibold text-slate-950">
-                      Best levers to improve fit
+                      {t("Best levers to improve fit", "提升匹配度的最佳杠杆")}
                     </p>
                   </div>
                 </div>
@@ -395,21 +422,27 @@ export default async function AnalysisPage({
       ) : (
         <EmptyState
           ctaHref={resume && jobDescription ? undefined : "/dashboard/upload"}
-          ctaLabel={resume && jobDescription ? undefined : "Add resume and job description"}
+          ctaLabel={resume && jobDescription ? undefined : t("Add resume and job description", "添加简历与岗位描述")}
           description={
             resume && jobDescription
-              ? "Select a resume and job description, then run your first analysis to see ATS alignment, clarity, impact, and job fit."
-              : "Analysis becomes available once ResumeForge has both sides of the comparison: your resume and the role you are targeting."
+              ? t(
+                  "Select a resume and job description, then run your first analysis to see ATS alignment, clarity, impact, and job fit.",
+                  "选择简历与岗位描述后，运行首次分析即可查看 ATS 匹配度、清晰度、影响力与岗位契合度。",
+                )
+              : t(
+                  "Analysis becomes available once ResumeForge has both sides of the comparison: your resume and the role you are targeting.",
+                  "当 ResumeForge 同时拿到你的简历和目标岗位后，即可开始分析。",
+                )
           }
           icon={ScanSearch}
-          title="Run your first ATS analysis"
+          title={t("Run your first ATS analysis", "运行你的首次 ATS 分析")}
           secondary={
             resume && jobDescription ? (
               canRunAnalysis ? (
                 <form action={runAnalysisAction}>
                   <input name="resumeId" type="hidden" value={resume.id} />
                   <input name="jobDescriptionId" type="hidden" value={jobDescription.id} />
-                  <SubmitButton pendingLabel="Running analysis...">Run analysis</SubmitButton>
+                  <SubmitButton pendingLabel={t("Running analysis...", "正在分析...")}>{t("Run analysis", "开始分析")}</SubmitButton>
                 </form>
               ) : (
                 <UsageLimitPrompt compact action="analysis" />
@@ -420,7 +453,7 @@ export default async function AnalysisPage({
       )}
 
       <Card className="bg-gradient-to-br from-slate-50 to-white">
-        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Next best action</p>
+        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{t("Next best action", "下一步建议")}</p>
         <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
           {nextAction.title}
         </h2>

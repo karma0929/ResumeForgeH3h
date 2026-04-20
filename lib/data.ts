@@ -7,9 +7,12 @@ import type {
   JobDescriptionRecord,
   PaymentRecord,
   ResumeAnalysis,
+  ResumeDraftOutput,
   ResumeIntakeMode,
+  ResumeOutputLanguage,
   ResumeProfileData,
   ResumeRecord,
+  ResumeTemplateId,
   ResumeVersionRecord,
   RewriteMode,
   RewriteResult,
@@ -518,18 +521,25 @@ export async function createResumeRecord(input: {
   intakeMode: ResumeIntakeMode;
   profileData?: ResumeProfileData | null;
   createVersion?: boolean;
+  preferOriginalText?: boolean;
 }) {
   // TODO: replace paste-only intake with PDF/DOCX parsing before persisting.
   const profileData = normalizeResumeProfileData(input.profileData, input.intakeMode);
-  const resolvedText = buildResumeTextFromProfile({
-    title: input.title,
-    profile: profileData,
-    fallbackText: input.originalText,
-  });
+  const manualText = input.originalText.trim();
+  const resolvedText =
+    input.preferOriginalText && manualText.length >= 40
+      ? manualText
+      : buildResumeTextFromProfile({
+          title: input.title,
+          profile: profileData,
+          fallbackText: input.originalText,
+        });
   const safeText =
     resolvedText.length >= 40
       ? resolvedText
-      : `${input.title}\n\nResume draft saved. Add more detail in guided mode to improve analysis quality.`;
+      : /[\u3400-\u9fff]/.test(`${profileData.basicProfile.fullName}\n${profileData.professionalSummary}`)
+        ? `${input.title}\n\n简历草稿已保存。可在引导模式补充更多细节以提升分析质量。`
+        : `${input.title}\n\nResume draft saved. Add more detail in guided mode to improve analysis quality.`;
   const parsed = parseResume(safeText);
   const profileCompleteness = calculateResumeProfileCompleteness({
     originalText: safeText,
@@ -798,6 +808,89 @@ export async function generateTailoredResumeDraft(input: {
             resumeId: resume.id,
             jobDescriptionId: jobDescription.id,
             draft: true,
+          } as Prisma.InputJsonValue,
+          output: output as unknown as Prisma.InputJsonValue,
+        },
+      });
+    },
+    async () => null,
+  );
+
+  return output;
+}
+
+export async function generateGuidedResumeDraft(input: {
+  userId: string;
+  resumeId: string;
+}, sourceSnapshot?: AppSnapshot): Promise<ResumeDraftOutput> {
+  const ai = getAIService({ preferLive: true });
+  const snapshot = sourceSnapshot ?? (await getAppSnapshotByUserId(input.userId));
+  const resume = snapshot.resumes.find((item) => item.id === input.resumeId);
+
+  if (!resume) {
+    throw new ValidationError("Selected resume could not be found.");
+  }
+
+  const profile = normalizeResumeProfileData(resume.profileData, "guided");
+  const primaryJobDescription = snapshot.jobDescriptions[0];
+  const languageEvidence = [
+    resume.originalText,
+    profile.professionalSummary,
+    profile.basicProfile.fullName,
+    profile.basicProfile.currentTitle,
+    primaryJobDescription?.description ?? "",
+  ].join("\n");
+  const outputLanguage: ResumeOutputLanguage =
+    profile.preferences.outputLanguage ||
+    (/[\u3400-\u9fff]/.test(languageEvidence) ? "zh" : "en");
+  const templateId: ResumeTemplateId = profile.preferences.templateId || "classic_ats";
+
+  const output = await ai.generateResumeDraft({
+    profileData: profile,
+    outputLanguage,
+    templateId,
+    resumeStyle: profile.preferences.resumeStyle || "",
+    keywordEmphasis: profile.preferences.keywordEmphasis || "",
+    industryPreference: profile.preferences.industryPreference || "",
+    role: primaryJobDescription?.role || profile.basicProfile.targetTitle || "",
+    company: primaryJobDescription?.company || "",
+    jobDescriptionText: primaryJobDescription?.description || "",
+  });
+  const generatedContent =
+    output.content.trim().length >= 40
+      ? output.content.trim()
+      : buildResumeTextFromProfile({
+          title: resume.title,
+          profile,
+          fallbackText: resume.originalText,
+        });
+
+  await createResumeRecord({
+    userId: input.userId,
+    resumeId: resume.id,
+    title: resume.title,
+    originalText: generatedContent,
+    intakeMode: "guided",
+    profileData: profile,
+    createVersion: true,
+    preferOriginalText: true,
+  });
+
+  await withFallback(
+    async () => {
+      await prisma.aIGeneration.create({
+        data: {
+          userId: input.userId,
+          resumeId: resume.id,
+          jobDescriptionId: primaryJobDescription?.id ?? null,
+          resumeVersionId: null,
+          type: "TAILORED_RESUME",
+          input: {
+            resumeId: resume.id,
+            jobDescriptionId: primaryJobDescription?.id ?? null,
+            draftType: "guided_resume_draft",
+            outputLanguage,
+            templateId,
           } as Prisma.InputJsonValue,
           output: output as unknown as Prisma.InputJsonValue,
         },

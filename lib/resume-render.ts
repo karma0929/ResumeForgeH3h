@@ -336,10 +336,9 @@ export function buildResumeRenderModel(input: {
   const headline = buildHeadline(profile, language);
   const contactLine = buildContactLine(profile, language) || parsed.contactLine;
   const summary = profile.professionalSummary || input.version.summary || "";
-  const sections =
-    createSectionsFromProfile(profile, language).length > 0
-      ? createSectionsFromProfile(profile, language)
-      : createSectionsFromText(input.version.content, language);
+  const contentSections = createSectionsFromText(input.version.content, language);
+  const profileSections = createSectionsFromProfile(profile, language);
+  const sections = contentSections.length >= 2 ? contentSections : profileSections;
 
   return {
     language,

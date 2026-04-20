@@ -2,12 +2,14 @@ import OpenAI from "openai";
 import type {
   AnalyzeJobDescriptionInput,
   AIProvider,
+  GenerateResumeDraftInput,
   GenerateTailoredResumeInput,
   RewriteBulletInput,
   ScoreResumeInput,
 } from "@/lib/ai/types";
 import type {
   JDAnalysis,
+  ResumeDraftOutput,
   ResumeAnalysis,
   RewriteResult,
   TailoredResumeOutput,
@@ -110,6 +112,32 @@ const tailoredResumeSchema: JSONSchema = {
   },
 };
 
+const resumeDraftSchema: JSONSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "summary", "sections", "content", "qualityNotes"],
+  properties: {
+    name: { type: "string" },
+    summary: { type: "string" },
+    sections: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["key", "title", "lines", "bullets"],
+        properties: {
+          key: { type: "string" },
+          title: { type: "string" },
+          lines: { type: "array", items: { type: "string" } },
+          bullets: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
+    content: { type: "string" },
+    qualityNotes: { type: "array", items: { type: "string" } },
+  },
+};
+
 function asStringArray(value: unknown, limit = 12) {
   if (!Array.isArray(value)) {
     return [];
@@ -209,6 +237,47 @@ function normalizeTailoredResume(value: unknown): TailoredResumeOutput {
       : [],
     content: typeof raw.content === "string" ? raw.content : "",
     score: clampScore(raw.score),
+  };
+}
+
+function normalizeResumeDraft(value: unknown, language: "en" | "zh"): ResumeDraftOutput {
+  const raw = (value ?? {}) as Record<string, unknown>;
+  const sectionsInput = Array.isArray(raw.sections) ? raw.sections : [];
+
+  return {
+    name:
+      typeof raw.name === "string" && raw.name.trim().length > 0
+        ? raw.name.trim()
+        : language === "zh"
+          ? "简历草稿"
+          : "Resume Draft",
+    summary:
+      typeof raw.summary === "string" && raw.summary.trim().length > 0
+        ? raw.summary.trim()
+        : language === "zh"
+          ? "已基于输入信息生成草稿。"
+          : "Draft generated from supplied profile information.",
+    sections: sectionsInput
+      .map((item) => {
+        const section = item as Record<string, unknown>;
+        return {
+          key:
+            typeof section.key === "string" && section.key.trim().length > 0
+              ? section.key.trim()
+              : "custom",
+          title:
+            typeof section.title === "string" && section.title.trim().length > 0
+              ? section.title.trim()
+              : language === "zh"
+                ? "补充信息"
+                : "Additional Information",
+          lines: asStringArray(section.lines, 20),
+          bullets: asStringArray(section.bullets, 30),
+        };
+      })
+      .filter((section) => section.lines.length > 0 || section.bullets.length > 0),
+    content: typeof raw.content === "string" ? raw.content.trim() : "",
+    qualityNotes: asStringArray(raw.qualityNotes, 8),
   };
 }
 
@@ -360,6 +429,40 @@ ${JSON.stringify(parsedResume, null, 2)}
 Job description:
 ${input.jobDescriptionText}`,
       normalize: normalizeTailoredResume,
+    });
+  }
+
+  async generateResumeDraft(input: GenerateResumeDraftInput): Promise<ResumeDraftOutput> {
+    const languageLabel = input.outputLanguage === "zh" ? "Chinese (Simplified)" : "English";
+
+    return this.runStructuredRequest({
+      schemaName: "guided_resume_draft",
+      schema: resumeDraftSchema,
+      instructions:
+        "You are an expert U.S. resume writer for a SaaS resume assistant. Improve clarity, structure, and impact while preserving factual truth. Never invent achievements, numbers, employers, dates, skills, certifications, projects, or claims not grounded in user-provided input. If evidence is weak, keep wording conservative. Produce output in the requested language only.",
+      input: `Generate a polished resume draft from structured profile data.
+
+Required output language: ${languageLabel}
+Template style: ${input.templateId}
+Tone preference: ${input.resumeStyle || "not specified"}
+Keyword emphasis: ${input.keywordEmphasis || "not specified"}
+Industry preference: ${input.industryPreference || "not specified"}
+Target role: ${input.role || "not specified"}
+Target company: ${input.company || "not specified"}
+
+Target job description:
+${input.jobDescriptionText || "N/A"}
+
+Structured profile JSON:
+${JSON.stringify(input.profileData, null, 2)}
+
+Requirements:
+1. Remove redundancy and placeholder-like content.
+2. Keep concise recruiter-ready hierarchy.
+3. Use achievement-oriented phrasing when supported by facts.
+4. Omit empty sections.
+5. Return both structured sections and one final plain-text resume content.`,
+      normalize: (value) => normalizeResumeDraft(value, input.outputLanguage),
     });
   }
 }

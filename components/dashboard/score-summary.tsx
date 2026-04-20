@@ -2,29 +2,38 @@ import { ArrowUpRight, BriefcaseBusiness, CheckCircle2, CircleAlert, ScanSearch 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import type { ResumeAnalysis } from "@/lib/types";
+import type { ResumeAnalysis, UILanguage } from "@/lib/types";
 
-function verdict(overall: number) {
+function verdict(overall: number, uiLanguage: UILanguage) {
   if (overall >= 85) {
     return {
-      label: "Strong match",
+      label: uiLanguage === "zh" ? "高匹配度" : "Strong match",
       tone: "bg-emerald-50 text-emerald-700",
-      description: "Your resume is already telling a recruiter the right story for this role.",
+      description:
+        uiLanguage === "zh"
+          ? "你的简历已能向招聘方清晰表达该岗位匹配度。"
+          : "Your resume is already telling a recruiter the right story for this role.",
     };
   }
 
   if (overall >= 70) {
     return {
-      label: "Promising, but tighten it",
+      label: uiLanguage === "zh" ? "潜力不错，仍可收紧" : "Promising, but tighten it",
       tone: "bg-sky-50 text-sky-700",
-      description: "You have a solid base. Targeted edits should raise screening confidence quickly.",
+      description:
+        uiLanguage === "zh"
+          ? "基础不错，进行针对性修改后可快速提升筛选通过率。"
+          : "You have a solid base. Targeted edits should raise screening confidence quickly.",
     };
   }
 
   return {
-    label: "Needs targeting work",
+    label: uiLanguage === "zh" ? "需要加强定向优化" : "Needs targeting work",
     tone: "bg-amber-50 text-amber-700",
-    description: "Keyword gaps and weaker bullets are likely dragging down recruiter confidence.",
+    description:
+      uiLanguage === "zh"
+        ? "关键词缺口和较弱的 Bullet 可能正在拉低招聘方信心。"
+        : "Keyword gaps and weaker bullets are likely dragging down recruiter confidence.",
   };
 }
 
@@ -32,30 +41,33 @@ export function ScoreSummary({
   analysis,
   targetLabel,
   compact = false,
+  uiLanguage,
 }: {
   analysis: ResumeAnalysis;
   targetLabel: string;
   compact?: boolean;
+  uiLanguage?: UILanguage;
 }) {
-  const summary = verdict(analysis.overall);
+  const language = uiLanguage ?? "en";
+  const summary = verdict(analysis.overall, language);
   const items = [
     {
-      label: "ATS Readiness",
+      label: language === "zh" ? "ATS 就绪度" : "ATS Readiness",
       value: analysis.atsReadiness,
       icon: ScanSearch,
     },
     {
-      label: "Clarity",
+      label: language === "zh" ? "清晰度" : "Clarity",
       value: analysis.clarity,
       icon: CheckCircle2,
     },
     {
-      label: "Impact",
+      label: language === "zh" ? "影响力" : "Impact",
       value: analysis.impact,
       icon: ArrowUpRight,
     },
     {
-      label: "Job Fit",
+      label: language === "zh" ? "岗位匹配" : "Job Fit",
       value: analysis.jobFit,
       icon: BriefcaseBusiness,
     },
@@ -67,7 +79,9 @@ export function ScoreSummary({
         <div className="border-b border-white/10 px-5 py-4 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Score Summary</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                {language === "zh" ? "评分总览" : "Score Summary"}
+              </p>
               <h2 className="mt-2 text-3xl font-semibold tracking-tight">{analysis.overall}/100</h2>
               <p className="mt-2 text-sm leading-6 text-slate-300">{targetLabel}</p>
             </div>
@@ -99,7 +113,9 @@ export function ScoreSummary({
     <Card className="overflow-hidden bg-slate-950 p-0 text-white">
       <div className="grid gap-0 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="border-b border-white/10 px-6 py-6 sm:px-8 lg:border-b-0 lg:border-r">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Resume Score</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+            {language === "zh" ? "简历评分" : "Resume Score"}
+          </p>
           <div className="mt-5 flex items-end gap-2">
             <h2 className="text-6xl font-semibold tracking-tight">{analysis.overall}</h2>
             <span className="pb-2 text-lg text-slate-400">/100</span>

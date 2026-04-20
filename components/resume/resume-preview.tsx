@@ -31,15 +31,21 @@ function templateClasses(templateId: ResumeRenderModel["templateId"]) {
 export function ResumePreview({ model }: { model: ResumeRenderModel }) {
   const theme = templateClasses(model.templateId);
   const isTechnical = model.templateId === "technical_product";
+  const isModern = model.templateId === "modern_professional";
   const primarySections = isTechnical
     ? model.sections.filter((section) => !["skills", "projects", "certifications", "links"].includes(section.key))
+    : isModern
+      ? model.sections.filter((section) => !["skills", "certifications", "links"].includes(section.key))
     : model.sections;
   const sideSections = isTechnical
     ? model.sections.filter((section) => ["skills", "projects", "certifications", "links"].includes(section.key))
+    : isModern
+      ? model.sections.filter((section) => ["skills", "certifications", "links"].includes(section.key))
     : [];
 
   return (
     <article className={cn("rounded-[28px] border p-7", theme.shell)}>
+      {isModern ? <div className="mb-5 h-1.5 rounded-full bg-gradient-to-r from-sky-600 via-cyan-500 to-emerald-500" /> : null}
       <header className={cn("border-b pb-4", theme.heading)}>
         <h2 className="text-[1.65rem] font-semibold tracking-tight">{model.name}</h2>
         {model.headline ? <p className="mt-2 text-sm text-slate-600">{model.headline}</p> : null}
@@ -55,7 +61,16 @@ export function ResumePreview({ model }: { model: ResumeRenderModel }) {
         </section>
       ) : null}
 
-      <div className={cn("mt-5", isTechnical ? "grid gap-6 lg:grid-cols-[1.15fr_0.85fr]" : "space-y-5")}>
+      <div
+        className={cn(
+          "mt-5",
+          isTechnical
+            ? "grid gap-6 lg:grid-cols-[1.15fr_0.85fr]"
+            : isModern
+              ? "grid gap-6 lg:grid-cols-[1.2fr_0.8fr]"
+              : "space-y-5",
+        )}
+      >
         <div className="space-y-5">
           {primarySections.map((section) => (
             <section key={section.key}>
@@ -78,8 +93,15 @@ export function ResumePreview({ model }: { model: ResumeRenderModel }) {
           ))}
         </div>
 
-        {isTechnical ? (
-          <aside className="space-y-5 rounded-2xl border border-sky-100 bg-white/70 p-4">
+        {isTechnical || isModern ? (
+          <aside
+            className={cn(
+              "space-y-5 rounded-2xl p-4",
+              isTechnical
+                ? "border border-sky-100 bg-white/70"
+                : "border border-slate-200 bg-gradient-to-b from-slate-50 to-white",
+            )}
+          >
             {sideSections.map((section) => (
               <section key={section.key}>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">

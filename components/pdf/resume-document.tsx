@@ -12,6 +12,10 @@ import type { ReactElement } from "react";
 import type { ResumeRenderModel } from "@/lib/resume-render";
 
 let fontsRegistered = false;
+const CJK_REGULAR_URL =
+  "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf";
+const CJK_BOLD_URL =
+  "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Bold.otf";
 
 function ensureFonts() {
   if (fontsRegistered) {
@@ -35,19 +39,13 @@ function ensureFonts() {
     fontWeight: 700,
   });
   Font.register({
-    family: "ResumeNotoSC",
-    src: path.join(
-      process.cwd(),
-      "node_modules/@fontsource/noto-sans-sc/files/noto-sans-sc-100-400-normal.woff",
-    ),
+    family: "ResumeCJK",
+    src: CJK_REGULAR_URL,
     fontWeight: 400,
   });
   Font.register({
-    family: "ResumeNotoSC",
-    src: path.join(
-      process.cwd(),
-      "node_modules/@fontsource/noto-sans-sc/files/noto-sans-sc-100-700-normal.woff",
-    ),
+    family: "ResumeCJK",
+    src: CJK_BOLD_URL,
     fontWeight: 700,
   });
 
@@ -55,9 +53,10 @@ function ensureFonts() {
 }
 
 function createStyles(model: ResumeRenderModel) {
-  const baseFont = model.language === "zh" ? "ResumeNotoSC" : "ResumeInter";
+  const baseFont = "ResumeCJK";
   const technical = model.templateId === "technical_product";
   const modern = model.templateId === "modern_professional";
+  const twoColumn = technical || modern;
 
   return StyleSheet.create({
     page: {
@@ -67,7 +66,7 @@ function createStyles(model: ResumeRenderModel) {
       fontSize: 10.5,
       color: "#0f172a",
       fontFamily: baseFont,
-      lineHeight: 1.46,
+      lineHeight: model.language === "zh" ? 1.58 : 1.46,
       backgroundColor: "#ffffff",
     },
     header: {
@@ -75,6 +74,13 @@ function createStyles(model: ResumeRenderModel) {
       borderBottomColor: modern ? "#93c5fd" : "#cbd5e1",
       paddingBottom: 10,
       marginBottom: 12,
+    },
+    modernAccent: {
+      marginTop: 8,
+      height: 3,
+      width: "55%",
+      backgroundColor: "#0ea5e9",
+      borderRadius: 999,
     },
     title: {
       fontSize: 21,
@@ -113,19 +119,19 @@ function createStyles(model: ResumeRenderModel) {
       lineHeight: 1.5,
     },
     content: {
-      flexDirection: technical ? "row" : "column",
+      flexDirection: twoColumn ? "row" : "column",
       gap: 12,
     },
     mainColumn: {
       flexGrow: 1,
-      flexBasis: technical ? "68%" : "100%",
+      flexBasis: technical ? "68%" : modern ? "70%" : "100%",
     },
     sideColumn: {
       flexGrow: 0,
-      flexBasis: "32%",
+      flexBasis: technical ? "32%" : "30%",
       paddingLeft: 12,
       borderLeftWidth: 1,
-      borderLeftColor: "#e2e8f0",
+      borderLeftColor: modern ? "#bfdbfe" : "#e2e8f0",
     },
     section: {
       marginBottom: 11,
@@ -182,15 +188,25 @@ export function ResumePdfDocument({
   ensureFonts();
   const styles = createStyles(model);
   const technical = model.templateId === "technical_product";
+  const modern = model.templateId === "modern_professional";
+  const twoColumn = technical || modern;
   const sideSections = technical
     ? model.sections.filter((section) =>
         ["skills", "projects", "certifications", "links"].includes(section.key),
       )
+    : modern
+      ? model.sections.filter((section) =>
+          ["skills", "certifications", "links"].includes(section.key),
+        )
     : [];
   const mainSections = technical
     ? model.sections.filter(
         (section) => !["skills", "projects", "certifications", "links"].includes(section.key),
       )
+    : modern
+      ? model.sections.filter(
+          (section) => !["skills", "certifications", "links"].includes(section.key),
+        )
     : model.sections;
 
   return (
@@ -200,6 +216,7 @@ export function ResumePdfDocument({
           <Text style={styles.title}>{model.name}</Text>
           {model.headline ? <Text style={styles.headline}>{model.headline}</Text> : null}
           {model.contactLine ? <Text style={styles.contact}>{model.contactLine}</Text> : null}
+          {modern ? <View style={styles.modernAccent} /> : null}
         </View>
 
         {model.summary ? (
@@ -231,7 +248,7 @@ export function ResumePdfDocument({
             ))}
           </View>
 
-          {technical ? (
+          {twoColumn ? (
             <View style={styles.sideColumn}>
               {sideSections.map((section) => (
                 <View key={section.key} style={styles.section}>

@@ -10,16 +10,21 @@ const SECTION_ALIASES: Record<string, string> = {
   experience: "experience",
   "work experience": "experience",
   "工作经历": "experience",
+  "专业经历": "experience",
   "实习经历": "experience",
+  "经历": "experience",
   employment: "experience",
   projects: "projects",
   project: "projects",
   "项目经历": "projects",
+  "项目": "projects",
   skills: "skills",
   technical: "skills",
   "技能": "skills",
+  "技能清单": "skills",
   education: "education",
   "教育背景": "education",
+  "教育": "education",
   certifications: "certifications",
   "证书": "certifications",
   "认证": "certifications",
@@ -30,16 +35,19 @@ const SECTION_ALIASES: Record<string, string> = {
   "奖项": "awards",
   links: "links",
   "个人链接": "links",
+  "联系方式": "links",
 };
 
-const BULLET_REGEX = /^[-*•]\s*/;
+const BULLET_REGEX = /^[-*•·●▪◦]\s*/;
 
 function normalizeLine(line: string) {
   return line.replace(/\s+/g, " ").trim();
 }
 
 function detectHeading(line: string) {
-  const normalized = normalizeLine(line).toLowerCase().replace(/:$/, "");
+  const normalized = normalizeLine(line)
+    .replace(/[：:]$/, "")
+    .toLowerCase();
   return SECTION_ALIASES[normalized];
 }
 

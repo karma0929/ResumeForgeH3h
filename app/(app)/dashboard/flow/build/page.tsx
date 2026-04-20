@@ -77,17 +77,57 @@ function parseProjectLine(value: string) {
   };
 }
 
-const steps = [
-  { number: 1, title: "Basic identity", description: "Set your resume identity and direction." },
-  { number: 2, title: "Education", description: "Capture schooling and academic context." },
-  { number: 3, title: "Work / internships", description: "Add practical experience and outcomes." },
-  { number: 4, title: "Projects", description: "Show applied skills through project work." },
-  { number: 5, title: "Skills and tools", description: "Define your technical and professional stack." },
-  { number: 6, title: "Optional enhancements", description: "Add optional signals that strengthen profile quality." },
-  { number: 7, title: "Target role information", description: "Anchor the resume to a target role and context." },
-  { number: 8, title: "Style preferences", description: "Choose tone and emphasis for generated output." },
-  { number: 9, title: "Review and generate", description: "Check completeness and generate a first draft." },
-  { number: 10, title: "Generated result", description: "Preview, edit, regenerate, and export." },
+const stepBlueprints = [
+  {
+    number: 1,
+    title: { en: "Basic identity", zh: "基础身份信息" },
+    description: { en: "Set your resume identity and direction.", zh: "先确定你的简历身份与方向。" },
+  },
+  {
+    number: 2,
+    title: { en: "Education", zh: "教育背景" },
+    description: { en: "Capture schooling and academic context.", zh: "补充院校与学术背景信息。" },
+  },
+  {
+    number: 3,
+    title: { en: "Work / internships", zh: "工作 / 实习经历" },
+    description: { en: "Add practical experience and outcomes.", zh: "添加实践经历与产出结果。" },
+  },
+  {
+    number: 4,
+    title: { en: "Projects", zh: "项目经历" },
+    description: { en: "Show applied skills through project work.", zh: "通过项目展示可落地能力。" },
+  },
+  {
+    number: 5,
+    title: { en: "Skills and tools", zh: "技能与工具" },
+    description: { en: "Define your technical and professional stack.", zh: "定义你的技术栈与专业能力。" },
+  },
+  {
+    number: 6,
+    title: { en: "Optional enhancements", zh: "可选增强信息" },
+    description: { en: "Add optional signals that strengthen profile quality.", zh: "补充可选信号以增强简历质量。" },
+  },
+  {
+    number: 7,
+    title: { en: "Target role information", zh: "目标岗位信息" },
+    description: { en: "Anchor the resume to a target role and context.", zh: "让简历锚定具体岗位与上下文。" },
+  },
+  {
+    number: 8,
+    title: { en: "Style preferences", zh: "风格偏好" },
+    description: { en: "Choose tone and emphasis for generated output.", zh: "设置输出语气与强调方向。" },
+  },
+  {
+    number: 9,
+    title: { en: "Review and generate", zh: "复核与生成" },
+    description: { en: "Check completeness and generate a first draft.", zh: "检查完整度并生成首版草稿。" },
+  },
+  {
+    number: 10,
+    title: { en: "Generated result", zh: "生成结果" },
+    description: { en: "Preview, edit, regenerate, and export.", zh: "预览、编辑、重生成与导出。" },
+  },
 ];
 
 export default async function BuildFlowPage({
@@ -99,6 +139,12 @@ export default async function BuildFlowPage({
   const identity = await getSessionIdentity();
   const snapshot = await getAppSnapshot(identity);
   const uiLanguage = await getUiLanguage();
+  const t = (en: string, zh: string) => pickText(uiLanguage, en, zh);
+  const steps = stepBlueprints.map((item) => ({
+    number: item.number,
+    title: t(item.title.en, item.title.zh),
+    description: t(item.description.en, item.description.zh),
+  }));
 
   const resume = snapshot.resumes[0];
   const profile = resume?.profileData;
@@ -106,6 +152,28 @@ export default async function BuildFlowPage({
   const originalVersion = snapshot.resumeVersions.find(
     (version) => version.resumeId === resume?.id && version.type === "ORIGINAL",
   );
+  const latestDraftGeneration =
+    snapshot.aiGenerations.find((item) => {
+      if (item.type !== "TAILORED_RESUME" || item.resumeId !== resume?.id) {
+        return false;
+      }
+      const input = (item.input ?? {}) as Record<string, unknown>;
+      return input.draftType === "guided_resume_draft";
+    }) ?? null;
+  const draftQualityNotes = (() => {
+    if (!latestDraftGeneration) {
+      return [];
+    }
+    const output = (latestDraftGeneration.output ?? {}) as Record<string, unknown>;
+    if (!Array.isArray(output.qualityNotes)) {
+      return [];
+    }
+    return output.qualityNotes
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+  })();
 
   const hasStep1 = Boolean(
     profile &&
@@ -148,7 +216,7 @@ export default async function BuildFlowPage({
     10: hasGeneratedDraft,
   };
 
-  const firstIncomplete = steps.find((step) => !completionByStep[step.number])?.number ?? 10;
+  const firstIncomplete = steps.find((stepItem) => !completionByStep[stepItem.number])?.number ?? 10;
   const maxAccessibleStep = firstIncomplete;
   const requestedStep = parseStep(queryValue(params, "step"), maxAccessibleStep);
   const step = requestedStep > maxAccessibleStep ? maxAccessibleStep : requestedStep;
@@ -165,32 +233,32 @@ export default async function BuildFlowPage({
 
   const banner = error
     ? {
-        title: "This step needs attention",
+        title: t("This step needs attention", "该步骤需要处理"),
         description: error,
         tone: "warning" as const,
       }
     : generated
       ? {
-          title: "Resume draft generated",
-          description: "Preview and edit your generated result below.",
+          title: t("Resume draft generated", "简历草稿已生成"),
+          description: t("Preview and edit your generated result below.", "可在下方预览并编辑生成结果。"),
           tone: "success" as const,
         }
       : resumeSaved && draftSaved
         ? {
-            title: "Draft saved",
-            description: "Progress is saved. Continue when ready.",
+            title: t("Draft saved", "草稿已保存"),
+            description: t("Progress is saved. Continue when ready.", "进度已保存，可随时继续。"),
             tone: "success" as const,
           }
         : resumeSaved
           ? {
-              title: "Step saved",
-              description: "Continue to the next section.",
+              title: t("Step saved", "步骤已保存"),
+              description: t("Continue to the next section.", "继续下一个步骤。"),
               tone: "success" as const,
             }
           : jobDescriptionSaved
             ? {
-                title: "Target role saved",
-                description: "Your role context is ready for generation and analysis.",
+                title: t("Target role saved", "目标岗位已保存"),
+                description: t("Your role context is ready for generation and analysis.", "岗位上下文已就绪，可继续生成与分析。"),
                 tone: "success" as const,
               }
             : null;
@@ -235,13 +303,13 @@ export default async function BuildFlowPage({
       <Card className="border-slate-200 bg-white/92 p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Build workflow</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{t("Build workflow", "创建流程")}</p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              Step {step} of 10 — {stepMeta.title}
+              {t(`Step ${step} of 10`, `第 ${step} / 10 步`)} — {stepMeta.title}
             </h2>
             <p className="mt-2 text-sm text-slate-600">{stepMeta.description}</p>
           </div>
-          <Badge className="bg-white text-slate-700">{progressPercent}% complete</Badge>
+          <Badge className="bg-white text-slate-700">{progressPercent}% {t("complete", "已完成")}</Badge>
         </div>
         <div className="mt-4">
           <ProgressBar value={progressPercent} />
@@ -258,7 +326,7 @@ export default async function BuildFlowPage({
               }`}
               key={item.number}
             >
-              <span className="font-medium">Step {item.number}</span>
+              <span className="font-medium">{t(`Step ${item.number}`, `第 ${item.number} 步`)}</span>
               <p className="mt-1 line-clamp-1">{item.title}</p>
             </div>
           ))}
@@ -269,13 +337,13 @@ export default async function BuildFlowPage({
         <Card className="border-amber-200 bg-amber-50 p-5 text-amber-900">
           <p className="flex items-center gap-2 text-sm font-semibold">
             <AlertTriangle className="h-4 w-4" />
-            Complete earlier steps first
+            {t("Complete earlier steps first", "请先完成前序步骤")}
           </p>
           <Link
             className="mt-3 inline-flex items-center gap-1 text-sm font-medium underline"
             href={`/dashboard/flow/build?step=${maxAccessibleStep}`}
           >
-            Go to current step
+            {t("Go to current step", "前往当前步骤")}
             <ArrowRight className="h-4 w-4" />
           </Link>
         </Card>
@@ -1222,6 +1290,19 @@ export default async function BuildFlowPage({
                   ]) ?? templateId}
                 </p>
               </div>
+
+              {draftQualityNotes.length > 0 ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                  <p className="font-medium">
+                    {pickText(uiLanguage, "AI quality notes", "AI 质量提示")}
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {draftQualityNotes.map((item) => (
+                      <li key={item}>• {item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
 
               <form action={saveResumeAction} className="space-y-3">
                 <input name="currentStep" type="hidden" value="10" />

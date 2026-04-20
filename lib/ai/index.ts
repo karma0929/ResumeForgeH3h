@@ -2,6 +2,7 @@ import type {
   AIProvider,
   AIProviderMode,
   AnalyzeJobDescriptionInput,
+  GenerateResumeDraftInput,
   GenerateTailoredResumeInput,
   RewriteBulletInput,
   ScoreResumeInput,
@@ -61,6 +62,14 @@ class FallbackAIProvider implements AIProvider {
       "generateTailoredResume",
       () => this.primary.generateTailoredResume(input),
       () => this.fallback.generateTailoredResume(input),
+    );
+  }
+
+  generateResumeDraft(input: GenerateResumeDraftInput) {
+    return this.runWithFallback(
+      "generateResumeDraft",
+      () => this.primary.generateResumeDraft(input),
+      () => this.fallback.generateResumeDraft(input),
     );
   }
 }

@@ -37,6 +37,7 @@ export default async function VersionsPage({
   const identity = await getSessionIdentity();
   const snapshot = await getAppSnapshot(identity);
   const uiLanguage = await getUiLanguage();
+  const t = (en: string, zh: string) => pickText(uiLanguage, en, zh);
   const exported = queryValue(params, "exported");
   const leftId = queryValue(params, "leftId") ?? snapshot.resumeVersions[0]?.id;
   const rightId =
@@ -83,8 +84,8 @@ export default async function VersionsPage({
 
       {exported ? (
         <StatusBanner
-          description="Your selected resume version was prepared for PDF export."
-          title="Export started"
+          description={t("Your selected resume version was prepared for PDF export.", "所选简历版本已准备好进行 PDF 导出。")}
+          title={t("Export started", "导出已开始")}
           tone="success"
         />
       ) : null}
@@ -95,14 +96,14 @@ export default async function VersionsPage({
         <>
           <Card>
             <p className="text-sm text-slate-500">
-              {pickText(uiLanguage, "Preview and export settings", "预览与导出设置")}
+              {t("Preview and export settings", "预览与导出设置")}
             </p>
             <form className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_auto]" method="get">
               <input name="leftId" type="hidden" value={left?.id ?? ""} />
               <input name="rightId" type="hidden" value={right?.id ?? ""} />
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-slate-700">
-                  {pickText(uiLanguage, "Resume output language", "简历输出语言")}
+                  {t("Resume output language", "简历输出语言")}
                 </span>
                 <select
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
@@ -115,7 +116,7 @@ export default async function VersionsPage({
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-slate-700">
-                  {pickText(uiLanguage, "Template", "模板")}
+                  {t("Template", "模板")}
                 </span>
                 <select
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
@@ -131,7 +132,7 @@ export default async function VersionsPage({
               </label>
               <div className="flex items-end">
                 <button className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800">
-                  {pickText(uiLanguage, "Update preview", "更新预览")}
+                  {t("Update preview", "更新预览")}
                 </button>
               </div>
             </form>
@@ -145,15 +146,15 @@ export default async function VersionsPage({
                 <GitCompareArrows className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-sm text-slate-500">Comparison controls</p>
-                <p className="text-lg font-semibold text-slate-950">
-                  Choose the two versions to review
-                </p>
-              </div>
+              <p className="text-sm text-slate-500">{t("Comparison controls", "对比设置")}</p>
+              <p className="text-lg font-semibold text-slate-950">
+                  {t("Choose the two versions to review", "选择要对比的两个版本")}
+              </p>
+            </div>
             </div>
             <form className="mt-6 grid gap-4 lg:grid-cols-[1fr_1fr_auto]" method="get">
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Left version</span>
+                <span className="mb-2 block text-sm font-medium text-slate-700">{t("Left version", "左侧版本")}</span>
                 <select
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
                   defaultValue={left?.id}
@@ -167,7 +168,7 @@ export default async function VersionsPage({
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Right version</span>
+                <span className="mb-2 block text-sm font-medium text-slate-700">{t("Right version", "右侧版本")}</span>
                 <select
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
                   defaultValue={right?.id}
@@ -182,7 +183,7 @@ export default async function VersionsPage({
               </label>
               <div className="flex items-end">
                 <button className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800">
-                  Compare
+                  {t("Compare", "对比")}
                 </button>
               </div>
             </form>
@@ -195,7 +196,7 @@ export default async function VersionsPage({
           )}
 
           <Card>
-            <p className="text-sm text-slate-500">Saved versions</p>
+            <p className="text-sm text-slate-500">{t("Saved versions", "已保存版本")}</p>
             <div className="mt-5 grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
               {snapshot.resumeVersions.map((version) => (
                 <div key={version.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
@@ -218,14 +219,14 @@ export default async function VersionsPage({
                         className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800"
                         href={`/dashboard/versions?leftId=${version.id}&rightId=${right?.id ?? version.id}`}
                       >
-                        Compare
+                        {t("Compare", "对比")}
                       </Link>
                     ) : (
                       <Link
                         className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800"
                         href="/dashboard/billing?upgradeFeature=version_compare"
                       >
-                        Unlock compare
+                        {t("Unlock compare", "解锁对比")}
                       </Link>
                     )}
                     {canExport ? (
@@ -240,7 +241,7 @@ export default async function VersionsPage({
                         className="inline-flex h-10 items-center justify-center rounded-full bg-slate-900 px-4 text-sm font-medium text-white"
                         href="/dashboard/billing?upgradeFeature=priority_export&blocked=1"
                       >
-                        Unlock export
+                        {t("Unlock export", "解锁导出")}
                       </Link>
                     )}
                   </div>
@@ -252,15 +253,18 @@ export default async function VersionsPage({
       ) : (
         <EmptyState
           ctaHref="/dashboard/tailoring"
-          ctaLabel="Create first version"
-          description="Resume versions appear after you save a rewrite or tailored resume. Use the tailoring workspace to generate your first candidate-specific draft."
+          ctaLabel={t("Create first version", "创建首个版本")}
+          description={t(
+            "Resume versions appear after you save a rewrite or tailored resume. Use the tailoring workspace to generate your first candidate-specific draft.",
+            "保存改写或定制简历后会生成版本。请在定制工作区生成首个岗位定向草稿。",
+          )}
           icon={Layers3}
-          title="No resume versions saved yet"
+          title={t("No resume versions saved yet", "尚无已保存版本")}
         />
       )}
 
       <Card className="bg-gradient-to-br from-slate-50 to-white">
-        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Next best action</p>
+        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{t("Next best action", "下一步建议")}</p>
         <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
           {nextAction.title}
         </h2>

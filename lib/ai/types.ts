@@ -1,5 +1,9 @@
 import type {
   JDAnalysis,
+  ResumeDraftOutput,
+  ResumeOutputLanguage,
+  ResumeProfileData,
+  ResumeTemplateId,
   ParsedResume,
   ResumeAnalysis,
   RewriteMode,
@@ -34,10 +38,23 @@ export interface GenerateTailoredResumeInput {
   company: string;
 }
 
+export interface GenerateResumeDraftInput {
+  profileData: ResumeProfileData;
+  outputLanguage: ResumeOutputLanguage;
+  templateId: ResumeTemplateId;
+  resumeStyle?: string;
+  keywordEmphasis?: string;
+  industryPreference?: string;
+  role?: string;
+  company?: string;
+  jobDescriptionText?: string;
+}
+
 export interface AIProvider {
   readonly name: AIProviderName;
   analyzeJobDescription(input: AnalyzeJobDescriptionInput): Promise<JDAnalysis>;
   scoreResume(input: ScoreResumeInput): Promise<ResumeAnalysis>;
   rewriteBullet(input: RewriteBulletInput): Promise<RewriteResult>;
   generateTailoredResume(input: GenerateTailoredResumeInput): Promise<TailoredResumeOutput>;
+  generateResumeDraft(input: GenerateResumeDraftInput): Promise<ResumeDraftOutput>;
 }

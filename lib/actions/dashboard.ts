@@ -10,6 +10,7 @@ import { RateLimitError, ValidationError } from "@/lib/errors";
 import {
   createJobDescriptionRecord,
   createResumeRecord,
+  generateGuidedResumeDraft,
   generateTailoredResumeDraft,
   createTailoredResumeVersion,
   incrementUsageCounter,
@@ -499,6 +500,7 @@ export async function saveResumeAction(formData: FormData) {
       intakeMode,
       profileData,
       createVersion: shouldCreateVersion,
+      preferOriginalText: intakeMode === "guided" && currentStep === 10 && quickResumeText.trim().length > 0,
     });
 
     revalidatePath("/dashboard");
@@ -758,14 +760,9 @@ export async function generateBuildDraftAction(formData: FormData) {
       throw new ValidationError("Add at least your basic profile before generating.");
     }
 
-    await createResumeRecord({
+    await generateGuidedResumeDraft({
       userId: snapshot.user.id,
       resumeId: resume.id,
-      title: resume.title || "Generated Resume Draft",
-      originalText: "",
-      intakeMode: "guided",
-      profileData: resume.profileData,
-      createVersion: true,
     });
 
     revalidatePath("/dashboard");
