@@ -20,10 +20,16 @@ export type RewriteMode =
 export type ResumeIntakeMode = "quick" | "guided";
 export type CareerLevel =
   | "student"
+  | "student_new_grad"
   | "entry"
+  | "entry_level"
+  | "internship_candidate"
+  | "early_career"
   | "mid"
+  | "mid_level"
   | "senior"
   | "staff_plus"
+  | "lead_staff"
   | "manager"
   | "director_plus";
 export type UILanguage = "en" | "zh";

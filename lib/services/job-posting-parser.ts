@@ -40,6 +40,81 @@ function decodeHtmlEntities(value: string) {
     .replace(/&#39;/g, "'");
 }
 
+function normalizeWhitespace(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function extractJsonLdJobPosting(html: string) {
+  const scripts = Array.from(
+    html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi),
+  );
+
+  for (const script of scripts) {
+    const raw = script[1]?.trim();
+    if (!raw) {
+      continue;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      const records = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray((parsed as Record<string, unknown>)["@graph"])
+          ? ((parsed as Record<string, unknown>)["@graph"] as unknown[])
+          : [parsed];
+
+      for (const record of records) {
+        if (!record || typeof record !== "object") {
+          continue;
+        }
+
+        const typedRecord = record as Record<string, unknown>;
+        const typeValue = typedRecord["@type"];
+        const types = Array.isArray(typeValue) ? typeValue : [typeValue];
+        const isJobPosting = types.some((item) => typeof item === "string" && item.toLowerCase() === "jobposting");
+
+        if (!isJobPosting) {
+          continue;
+        }
+
+        const hiringOrg =
+          typeof typedRecord.hiringOrganization === "object" && typedRecord.hiringOrganization
+            ? (typedRecord.hiringOrganization as Record<string, unknown>)
+            : null;
+        const jobLocation =
+          typeof typedRecord.jobLocation === "object" && typedRecord.jobLocation
+            ? (typedRecord.jobLocation as Record<string, unknown>)
+            : null;
+        const address =
+          jobLocation && typeof jobLocation.address === "object" && jobLocation.address
+            ? (jobLocation.address as Record<string, unknown>)
+            : null;
+
+        return {
+          title: typeof typedRecord.title === "string" ? normalizeWhitespace(typedRecord.title) : "",
+          company: hiringOrg && typeof hiringOrg.name === "string" ? normalizeWhitespace(hiringOrg.name) : "",
+          location:
+            address && typeof address.addressLocality === "string"
+              ? normalizeWhitespace(address.addressLocality)
+              : "",
+          description:
+            typeof typedRecord.description === "string"
+              ? normalizeWhitespace(
+                  decodeHtmlEntities(
+                    typedRecord.description.replace(/<[^>]+>/g, " "),
+                  ),
+                )
+              : "",
+        };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
 function cleanHtmlToText(html: string) {
   const stripped = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -86,6 +161,20 @@ async function fetchPostingHtml(url: string) {
     throw new ValidationError("Job posting page content is too short to parse.");
   }
 
+  const blockedPatterns = [
+    /access denied/i,
+    /forbidden/i,
+    /verify (you are|you're) human/i,
+    /captcha/i,
+    /cloudflare/i,
+    /bot detection/i,
+  ];
+  if (blockedPatterns.some((pattern) => pattern.test(html))) {
+    throw new ExternalServiceError(
+      "This job posting page appears protected by anti-bot checks. Paste the job description text manually.",
+    );
+  }
+
   return html;
 }
 
@@ -94,9 +183,19 @@ export async function parseJobPostingFromUrl(input: {
 }): Promise<ExtractedJobPostingOutput> {
   const sourceUrl = ensurePublicUrl(input.sourceUrl.trim());
   const html = await fetchPostingHtml(sourceUrl);
+  const jsonLd = extractJsonLdJobPosting(html);
   const readableText = cleanHtmlToText(html);
+  const enrichedText = [
+    jsonLd?.title ? `Role title: ${jsonLd.title}` : "",
+    jsonLd?.company ? `Company: ${jsonLd.company}` : "",
+    jsonLd?.location ? `Location: ${jsonLd.location}` : "",
+    jsonLd?.description ? `Structured description: ${jsonLd.description}` : "",
+    readableText,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
-  if (readableText.length < 200) {
+  if (enrichedText.length < 200) {
     throw new ValidationError("Could not extract enough readable text from that URL.");
   }
 
@@ -108,20 +207,22 @@ export async function parseJobPostingFromUrl(input: {
   const ai = getAIService({ preferLive: true });
   const extracted = await ai.extractJobPosting({
     sourceUrl,
-    jobPostingText: readableText,
+    jobPostingText: enrichedText,
   });
 
   return {
     ...extracted,
+    company: extracted.company || jsonLd?.company || "",
+    role: extracted.role || jsonLd?.title || "",
+    location: extracted.location || jsonLd?.location || "",
     sourceUrl,
     cleanedJobDescription:
       extracted.cleanedJobDescription && extracted.cleanedJobDescription.length >= 120
         ? extracted.cleanedJobDescription
-        : readableText.slice(0, 12000),
+        : (jsonLd?.description || readableText).slice(0, 12000),
     briefData: {
       ...extracted.briefData,
       sourceUrl,
     },
   };
 }
-

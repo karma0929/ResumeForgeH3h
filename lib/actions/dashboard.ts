@@ -22,12 +22,15 @@ import {
 import { assertUsageCooldown, getUsageUpgradePrompt, hasUsageRemaining } from "@/lib/usage";
 import { assertEnumValue, readStringField } from "@/lib/validation";
 import { parseJobPostingFromUrl } from "@/lib/services/job-posting-parser";
+import { pickText } from "@/lib/i18n";
+import { getUiLanguage } from "@/lib/i18n-server";
 import type {
   CareerLevel,
   ResumeIntakeMode,
   ResumeProfileData,
   RewriteMode,
   TargetRoleBriefData,
+  UILanguage,
 } from "@/lib/types";
 import { splitCsv, splitMultiline } from "@/lib/workshop";
 
@@ -103,6 +106,43 @@ function rethrowRedirect(error: unknown) {
   if (isRedirectError(error)) {
     throw error;
   }
+}
+
+const validationMessageZhMap: Record<string, string> = {
+  "title must be at least 3 characters.": "简历标题至少需要 3 个字符。",
+  "quickResumeText must be at least 40 characters.": "快速模式下简历正文至少需要 40 个字符。",
+  "role must be at least 2 characters.": "目标岗位至少需要 2 个字符。",
+  "Add at least your basic profile before generating.": "请先补充基础身份信息后再生成。",
+  "Enter a valid public job posting URL.": "请输入有效的公开岗位链接。",
+  "Only http/https job posting URLs are supported.": "仅支持 http/https 的岗位链接。",
+  "Private or local URLs are not allowed.": "不支持本地或内网链接。",
+  "The provided URL is not an HTML job posting page.": "该链接不是可解析的岗位网页。",
+  "Job posting page content is too short to parse.": "岗位页面内容过短，无法解析。",
+  "Could not extract enough readable text from that URL.": "未能从该链接提取足够文本内容。",
+  "This job posting page appears protected by anti-bot checks. Paste the job description text manually.":
+    "该页面存在反爬限制，建议手动粘贴岗位描述文本。",
+};
+
+function localizeActionErrorMessage(input: {
+  error: unknown;
+  uiLanguage: UILanguage;
+  fallbackEn: string;
+  fallbackZh: string;
+}) {
+  if (input.error instanceof ValidationError) {
+    if (input.uiLanguage === "zh") {
+      return validationMessageZhMap[input.error.message] ?? "输入信息有误，请检查后重试。";
+    }
+    return input.error.message;
+  }
+
+  if (input.error instanceof Error && input.uiLanguage === "zh") {
+    if (input.error.message.startsWith("Unable to fetch job posting URL")) {
+      return "岗位链接暂时无法访问，请稍后重试或手动粘贴岗位描述。";
+    }
+  }
+
+  return pickText(input.uiLanguage, input.fallbackEn, input.fallbackZh);
 }
 
 export async function saveResumeAction(formData: FormData) {
@@ -519,6 +559,7 @@ export async function saveResumeAction(formData: FormData) {
     );
   } catch (error) {
     rethrowRedirect(error);
+    const uiLanguage = await getUiLanguage();
     console.error("saveResumeAction failed", {
       step: readStringField(formData, "currentStep", { max: 10, fallback: "" }),
       nextStep: readStringField(formData, "nextStep", { max: 10, fallback: "" }),
@@ -527,7 +568,12 @@ export async function saveResumeAction(formData: FormData) {
       resumeId: readStringField(formData, "resumeId", { max: 120, fallback: "" }),
     });
     console.error(error);
-    const message = error instanceof ValidationError ? error.message : "Unable to save resume.";
+    const message = localizeActionErrorMessage({
+      error,
+      uiLanguage,
+      fallbackEn: "Unable to save resume.",
+      fallbackZh: "保存简历失败，请稍后重试。",
+    });
     const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/upload" });
     const returnTo =
       returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/dashboard/upload";
@@ -697,6 +743,7 @@ export async function saveJobDescriptionAction(formData: FormData) {
     );
   } catch (error) {
     rethrowRedirect(error);
+    const uiLanguage = await getUiLanguage();
     console.error("saveJobDescriptionAction failed", {
       step: readStringField(formData, "currentStep", { max: 10, fallback: "" }),
       nextStep: readStringField(formData, "nextStep", { max: 10, fallback: "" }),
@@ -705,8 +752,12 @@ export async function saveJobDescriptionAction(formData: FormData) {
       role: readStringField(formData, "role", { max: 120, fallback: "" }),
     });
     console.error(error);
-    const message =
-      error instanceof ValidationError ? error.message : "Unable to save job description.";
+    const message = localizeActionErrorMessage({
+      error,
+      uiLanguage,
+      fallbackEn: "Unable to save job description.",
+      fallbackZh: "保存岗位信息失败，请稍后重试。",
+    });
     const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/upload" });
     const returnTo =
       returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/dashboard/upload";
@@ -764,18 +815,27 @@ export async function parseJobPostingUrlAction(formData: FormData) {
     );
   } catch (error) {
     rethrowRedirect(error);
+    const uiLanguage = await getUiLanguage();
     console.error("parseJobPostingUrlAction failed", {
       returnTo: readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/build" }),
       step: readStringField(formData, "currentStep", { max: 10, fallback: "7" }),
       sourceUrl: readStringField(formData, "jobPostingUrl", { max: 600, fallback: "" }),
     });
     console.error(error);
-    const message =
-      error instanceof ValidationError ? error.message : "Unable to parse this job posting URL.";
+    const message = localizeActionErrorMessage({
+      error,
+      uiLanguage,
+      fallbackEn: "Unable to parse this job posting URL.",
+      fallbackZh: "无法解析该岗位链接，请手动补充岗位文本。",
+    });
+    const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/build" });
+    const returnTo =
+      returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/dashboard/flow/build";
+    const step = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "7" })) ?? 7;
     redirect(
       buildUploadRedirectPath({
-        basePath: "/dashboard/flow/build",
-        step: 7,
+        basePath: returnTo,
+        step,
         query: { error: message },
       }),
     );
@@ -847,17 +907,26 @@ export async function generateBuildDraftAction(formData: FormData) {
     );
   } catch (error) {
     rethrowRedirect(error);
+    const uiLanguage = await getUiLanguage();
     console.error("generateBuildDraftAction failed", {
       step: readStringField(formData, "currentStep", { max: 10, fallback: "9" }),
       returnTo: readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/build" }),
       resumeId: readStringField(formData, "resumeId", { max: 120, fallback: "" }),
     });
     console.error(error);
-    const message = error instanceof ValidationError ? error.message : "Unable to generate resume draft.";
+    const message = localizeActionErrorMessage({
+      error,
+      uiLanguage,
+      fallbackEn: "Unable to generate resume draft.",
+      fallbackZh: "生成简历草稿失败，请稍后重试。",
+    });
     const step = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "9" })) ?? 9;
+    const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/build" });
+    const returnTo =
+      returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/dashboard/flow/build";
     redirect(
       buildUploadRedirectPath({
-        basePath: "/dashboard/flow/build",
+        basePath: returnTo,
         step,
         query: { error: message },
       }),
