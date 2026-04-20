@@ -36,12 +36,10 @@ export function LanguageSwitcher({
         disabled={pendingLanguage !== null}
         onClick={() => applyLanguage("en")}
         className={cn(
-          "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-          pendingLanguage !== null && "opacity-70",
-          currentLanguage === "en"
-            ? "bg-slate-900 text-white"
-            : "text-slate-600 hover:text-slate-900",
+          "rf-chip-toggle",
         )}
+        data-disabled={pendingLanguage !== null ? "true" : "false"}
+        data-state={currentLanguage === "en" ? "active" : "inactive"}
       >
         EN
       </button>
@@ -50,12 +48,10 @@ export function LanguageSwitcher({
         disabled={pendingLanguage !== null}
         onClick={() => applyLanguage("zh")}
         className={cn(
-          "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-          pendingLanguage !== null && "opacity-70",
-          currentLanguage === "zh"
-            ? "bg-slate-900 text-white"
-            : "text-slate-600 hover:text-slate-900",
+          "rf-chip-toggle",
         )}
+        data-disabled={pendingLanguage !== null ? "true" : "false"}
+        data-state={currentLanguage === "zh" ? "active" : "inactive"}
       >
         中文
       </button>

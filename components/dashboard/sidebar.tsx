@@ -100,14 +100,12 @@ export function DashboardSidebar({
                 aria-current={active ? "page" : undefined}
                 key={item.href}
                 className={cn(
-                  "flex min-w-max items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors",
-                  active
-                    ? "border-sky-200 bg-sky-50 text-sky-900 shadow-sm"
-                    : "border-transparent text-slate-700 hover:border-slate-200 hover:bg-white hover:text-slate-900",
+                  "rf-nav-pill w-full justify-start rounded-2xl px-4 py-3 text-sm",
                 )}
+                data-state={active ? "active" : "inactive"}
                 href={item.href}
               >
-                <Icon className={cn("h-4 w-4", active ? "text-sky-700" : "text-slate-500")} />
+                <Icon className="rf-nav-pill-icon h-4 w-4" />
                 {item.label}
               </Link>
             );
@@ -116,19 +114,12 @@ export function DashboardSidebar({
             <Link
               aria-current={isActivePath(pathname, "/admin") ? "page" : undefined}
               className={cn(
-                "flex min-w-max items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors",
-                isActivePath(pathname, "/admin")
-                  ? "border-sky-200 bg-sky-50 text-sky-900 shadow-sm"
-                  : "border-transparent text-slate-700 hover:border-slate-200 hover:bg-white hover:text-slate-900",
+                "rf-nav-pill w-full justify-start rounded-2xl px-4 py-3 text-sm",
               )}
+              data-state={isActivePath(pathname, "/admin") ? "active" : "inactive"}
               href="/admin"
             >
-              <Shield
-                className={cn(
-                  "h-4 w-4",
-                  isActivePath(pathname, "/admin") ? "text-sky-700" : "text-slate-500",
-                )}
-              />
+              <Shield className="rf-nav-pill-icon h-4 w-4" />
               {uiLanguage === "zh" ? "管理" : "Admin"}
             </Link>
           ) : null}

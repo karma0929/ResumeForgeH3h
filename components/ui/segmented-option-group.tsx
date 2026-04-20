@@ -31,9 +31,11 @@ export function SegmentedOptionGroup({
               type="radio"
               value={option.value}
             />
-            <span className="block rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 transition peer-checked:border-sky-300 peer-checked:bg-sky-50 peer-checked:text-sky-900 hover:border-slate-300">
+            <span className="block rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 transition hover:border-slate-300 peer-focus-visible:border-sky-300 peer-focus-visible:ring-2 peer-focus-visible:ring-sky-200 peer-checked:border-sky-300 peer-checked:bg-sky-50 peer-checked:text-sky-900">
               <span className="block font-medium">{option.label}</span>
-              {option.hint ? <span className="mt-0.5 block text-xs text-slate-500">{option.hint}</span> : null}
+              {option.hint ? (
+                <span className="mt-0.5 block text-xs text-slate-500 peer-checked:text-sky-700">{option.hint}</span>
+              ) : null}
             </span>
           </label>
         );
@@ -41,4 +43,3 @@ export function SegmentedOptionGroup({
     </fieldset>
   );
 }
-

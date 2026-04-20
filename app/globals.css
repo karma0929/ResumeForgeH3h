@@ -166,3 +166,101 @@ select:focus-visible {
     animation: none !important;
   }
 }
+
+.rf-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-width: max-content;
+  white-space: nowrap;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  padding: 0.5rem 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+  color: #334155;
+  background: transparent;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.rf-nav-pill[data-state="inactive"]:hover {
+  color: #0f172a;
+  background: #ffffff;
+  border-color: #dbe3ee;
+}
+
+.rf-nav-pill[data-state="active"] {
+  color: #0c4a6e;
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.rf-nav-pill:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.65),
+    0 0 0 2px rgba(56, 189, 248, 0.38);
+}
+
+.rf-nav-pill[data-disabled="true"] {
+  opacity: 0.52;
+  pointer-events: none;
+}
+
+.rf-nav-pill-icon {
+  height: 0.95rem;
+  width: 0.95rem;
+  color: #64748b;
+}
+
+.rf-nav-pill[data-state="active"] .rf-nav-pill-icon {
+  color: #0369a1;
+}
+
+.rf-nav-pill--compact {
+  padding: 0.35rem 0.72rem;
+  font-size: 0.75rem;
+}
+
+.rf-chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: max-content;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  padding: 0.38rem 0.72rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  background: transparent;
+  white-space: nowrap;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.rf-chip-toggle[data-state="inactive"]:hover {
+  color: #0f172a;
+  background: #ffffff;
+  border-color: #dbe3ee;
+}
+
+.rf-chip-toggle[data-state="active"] {
+  color: #0c4a6e;
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+}
+
+.rf-chip-toggle:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.65),
+    0 0 0 2px rgba(56, 189, 248, 0.35);
+}
+
+.rf-chip-toggle:disabled,
+.rf-chip-toggle[data-disabled="true"] {
+  opacity: 0.56;
+  cursor: not-allowed;
+}

@@ -61,13 +61,13 @@ export function DashboardTopNavigation({
               <Link
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors",
-                  active ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                  "rf-nav-pill text-sm",
                 )}
+                data-state={active ? "active" : "inactive"}
                 href={item.href}
                 key={item.href}
               >
-                {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+                {Icon ? <Icon className="rf-nav-pill-icon" /> : null}
                 {item.label}
               </Link>
             );
@@ -75,14 +75,12 @@ export function DashboardTopNavigation({
           {user.role === "ADMIN" ? (
             <Link
               className={cn(
-                "ml-1 inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors",
-                isActive(pathname, "/admin")
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                "rf-nav-pill ml-1 text-sm",
               )}
+              data-state={isActive(pathname, "/admin") ? "active" : "inactive"}
               href="/admin"
             >
-              <Shield className="h-3.5 w-3.5" />
+              <Shield className="rf-nav-pill-icon" />
               {uiLanguage === "zh" ? "管理" : "Admin"}
             </Link>
           ) : null}
@@ -113,12 +111,8 @@ export function DashboardTopNavigation({
                 return (
                   <Link
                     aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "inline-flex h-8 shrink-0 items-center rounded-full px-3 text-xs font-medium transition-colors",
-                      active
-                        ? "bg-slate-900 text-white"
-                        : "border border-slate-200 bg-white text-slate-600",
-                    )}
+                    className="rf-nav-pill rf-nav-pill--compact h-8 text-xs"
+                    data-state={active ? "active" : "inactive"}
                     href={item.href}
                     key={`mobile_${item.href}`}
                   >
@@ -133,4 +127,3 @@ export function DashboardTopNavigation({
     </header>
   );
 }
-

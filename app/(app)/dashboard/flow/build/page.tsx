@@ -26,6 +26,7 @@ import {
 import { pickText } from "@/lib/i18n";
 import { getUiLanguage } from "@/lib/i18n-server";
 import { buildResumeRenderModel, RESUME_TEMPLATES } from "@/lib/resume-render";
+import { cn } from "@/lib/utils";
 
 function queryValue(params: Record<string, string | string[] | undefined>, key: string) {
   const value = params[key];
@@ -331,13 +332,15 @@ export default async function BuildFlowPage({
               {steps.map((item) => (
                 <Link
                   href={`/dashboard/flow/build?step=${item.number}`}
-                  className={`block rounded-xl border px-3 py-2 text-xs transition ${
+                  className={cn(
+                    "rf-nav-pill block w-full rounded-xl px-3 py-2 text-left text-xs",
                     item.number === step
-                      ? "border-sky-300 bg-sky-50 text-sky-900"
+                      ? ""
                       : completionByStep[item.number]
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                        : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white"
-                  }`}
+                        ? "border-slate-200 bg-white text-slate-700"
+                        : "border-slate-200 bg-slate-50 text-slate-600",
+                  )}
+                  data-state={item.number === step ? "active" : "inactive"}
                   key={item.number}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -346,6 +349,11 @@ export default async function BuildFlowPage({
                       {item.number === firstIncomplete ? (
                         <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
                           {t("Next", "推荐")}
+                        </span>
+                      ) : null}
+                      {completionByStep[item.number] && item.number !== step ? (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                          {t("Done", "已完成")}
                         </span>
                       ) : null}
                       {optionalSteps.has(item.number) ? (
