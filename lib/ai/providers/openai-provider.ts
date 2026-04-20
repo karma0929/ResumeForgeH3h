@@ -2,6 +2,8 @@ import OpenAI from "openai";
 import type {
   AnalyzeJobDescriptionInput,
   AIProvider,
+  ExtractJobPostingInput,
+  ExtractedJobPostingOutput,
   GenerateResumeDraftInput,
   GenerateTailoredResumeInput,
   RewriteBulletInput,
@@ -11,6 +13,7 @@ import type {
   JDAnalysis,
   ResumeDraftOutput,
   ResumeAnalysis,
+  TargetRoleBriefData,
   RewriteResult,
   TailoredResumeOutput,
 } from "@/lib/types";
@@ -135,6 +138,75 @@ const resumeDraftSchema: JSONSchema = {
     },
     content: { type: "string" },
     qualityNotes: { type: "array", items: { type: "string" } },
+  },
+};
+
+const jobPostingExtractSchema: JSONSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "sourceUrl",
+    "company",
+    "role",
+    "location",
+    "cleanedJobDescription",
+    "briefData",
+  ],
+  properties: {
+    sourceUrl: { type: "string" },
+    company: { type: "string" },
+    role: { type: "string" },
+    location: { type: "string" },
+    cleanedJobDescription: { type: "string" },
+    briefData: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "sourceUrl",
+        "seniorityLevel",
+        "employmentType",
+        "workMode",
+        "industryDomain",
+        "salaryRange",
+        "topRequiredSkills",
+        "preferredSkills",
+        "emphasizeKeywords",
+        "responsibilitiesSummary",
+        "hiringPriorities",
+        "atsIntensity",
+        "technicalIntensity",
+        "recruiterNotes",
+      ],
+      properties: {
+        sourceUrl: { type: "string" },
+        seniorityLevel: { type: "string" },
+        employmentType: { type: "string" },
+        workMode: { type: "string" },
+        industryDomain: { type: "string" },
+        salaryRange: { type: "string" },
+        topRequiredSkills: { type: "array", items: { type: "string" } },
+        preferredSkills: { type: "array", items: { type: "string" } },
+        emphasizeKeywords: { type: "array", items: { type: "string" } },
+        responsibilitiesSummary: { type: "string" },
+        hiringPriorities: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: [
+              "technical_depth",
+              "communication",
+              "leadership",
+              "execution",
+              "research",
+              "product_thinking",
+            ],
+          },
+        },
+        atsIntensity: { type: "string" },
+        technicalIntensity: { type: "string" },
+        recruiterNotes: { type: "string" },
+      },
+    },
   },
 };
 
@@ -278,6 +350,57 @@ function normalizeResumeDraft(value: unknown, language: "en" | "zh"): ResumeDraf
       .filter((section) => section.lines.length > 0 || section.bullets.length > 0),
     content: typeof raw.content === "string" ? raw.content.trim() : "",
     qualityNotes: asStringArray(raw.qualityNotes, 8),
+  };
+}
+
+const allowedPriorities: Array<TargetRoleBriefData["hiringPriorities"][number]> = [
+  "technical_depth",
+  "communication",
+  "leadership",
+  "execution",
+  "research",
+  "product_thinking",
+];
+
+function normalizeExtractedJobPosting(value: unknown): ExtractedJobPostingOutput {
+  const raw = (value ?? {}) as Record<string, unknown>;
+  const brief = (raw.briefData ?? {}) as Record<string, unknown>;
+
+  const hiringPriorities = Array.isArray(brief.hiringPriorities)
+    ? brief.hiringPriorities
+        .filter((item): item is TargetRoleBriefData["hiringPriorities"][number] =>
+          typeof item === "string" && allowedPriorities.includes(item as TargetRoleBriefData["hiringPriorities"][number]),
+        )
+        .slice(0, 4)
+    : [];
+
+  return {
+    sourceUrl: typeof raw.sourceUrl === "string" ? raw.sourceUrl.trim() : "",
+    company: typeof raw.company === "string" ? raw.company.trim() : "",
+    role: typeof raw.role === "string" ? raw.role.trim() : "",
+    location: typeof raw.location === "string" ? raw.location.trim() : "",
+    cleanedJobDescription:
+      typeof raw.cleanedJobDescription === "string" ? raw.cleanedJobDescription.trim() : "",
+    briefData: {
+      sourceUrl: typeof brief.sourceUrl === "string" ? brief.sourceUrl.trim() : "",
+      seniorityLevel: typeof brief.seniorityLevel === "string" ? brief.seniorityLevel.trim() : "",
+      employmentType: typeof brief.employmentType === "string" ? brief.employmentType.trim() : "",
+      workMode: typeof brief.workMode === "string" ? brief.workMode.trim() : "",
+      industryDomain: typeof brief.industryDomain === "string" ? brief.industryDomain.trim() : "",
+      salaryRange: typeof brief.salaryRange === "string" ? brief.salaryRange.trim() : "",
+      topRequiredSkills: asStringArray(brief.topRequiredSkills, 20),
+      preferredSkills: asStringArray(brief.preferredSkills, 20),
+      emphasizeKeywords: asStringArray(brief.emphasizeKeywords, 20),
+      responsibilitiesSummary:
+        typeof brief.responsibilitiesSummary === "string"
+          ? brief.responsibilitiesSummary.trim()
+          : "",
+      hiringPriorities,
+      atsIntensity: typeof brief.atsIntensity === "string" ? brief.atsIntensity.trim() : "",
+      technicalIntensity:
+        typeof brief.technicalIntensity === "string" ? brief.technicalIntensity.trim() : "",
+      recruiterNotes: typeof brief.recruiterNotes === "string" ? brief.recruiterNotes.trim() : "",
+    },
   };
 }
 
@@ -463,6 +586,28 @@ Requirements:
 4. Omit empty sections.
 5. Return both structured sections and one final plain-text resume content.`,
       normalize: (value) => normalizeResumeDraft(value, input.outputLanguage),
+    });
+  }
+
+  async extractJobPosting(input: ExtractJobPostingInput): Promise<ExtractedJobPostingOutput> {
+    return this.runStructuredRequest({
+      schemaName: "job_posting_extract",
+      schema: jobPostingExtractSchema,
+      instructions:
+        "You extract structured hiring information from public job postings for a resume optimization product. Be conservative and factual. Do not infer unknown fields. Keep empty strings/arrays when uncertain.",
+      input: `Extract a structured role brief from this public job posting content.
+
+Source URL: ${input.sourceUrl}
+
+Job posting text:
+${input.jobPostingText}
+
+Rules:
+1. Keep output grounded to provided text.
+2. Do not fabricate salary or employer details.
+3. Preserve meaningful job-description body in cleanedJobDescription.
+4. Return output in concise U.S. recruiting terminology.`,
+      normalize: normalizeExtractedJobPosting,
     });
   }
 }

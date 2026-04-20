@@ -1,5 +1,6 @@
 import type {
   JDAnalysis,
+  TargetRoleBriefData,
   ResumeDraftOutput,
   ResumeOutputLanguage,
   ResumeProfileData,
@@ -50,6 +51,20 @@ export interface GenerateResumeDraftInput {
   jobDescriptionText?: string;
 }
 
+export interface ExtractJobPostingInput {
+  sourceUrl: string;
+  jobPostingText: string;
+}
+
+export interface ExtractedJobPostingOutput {
+  sourceUrl: string;
+  company: string;
+  role: string;
+  location: string;
+  cleanedJobDescription: string;
+  briefData: TargetRoleBriefData;
+}
+
 export interface AIProvider {
   readonly name: AIProviderName;
   analyzeJobDescription(input: AnalyzeJobDescriptionInput): Promise<JDAnalysis>;
@@ -57,4 +72,5 @@ export interface AIProvider {
   rewriteBullet(input: RewriteBulletInput): Promise<RewriteResult>;
   generateTailoredResume(input: GenerateTailoredResumeInput): Promise<TailoredResumeOutput>;
   generateResumeDraft(input: GenerateResumeDraftInput): Promise<ResumeDraftOutput>;
+  extractJobPosting(input: ExtractJobPostingInput): Promise<ExtractedJobPostingOutput>;
 }

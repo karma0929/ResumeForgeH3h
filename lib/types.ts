@@ -152,6 +152,7 @@ export interface ResumeProfileData {
 }
 
 export interface TargetRoleBriefData {
+  sourceUrl: string;
   seniorityLevel: string;
   employmentType: string;
   workMode: string;

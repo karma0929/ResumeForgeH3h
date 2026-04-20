@@ -2,7 +2,11 @@
 
 import { CheckCircle2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { ResumeTemplateDefinition } from "@/lib/resume-render";
+import {
+  getTemplatePreviewModel,
+  type ResumeRenderModel,
+  type ResumeTemplateDefinition,
+} from "@/lib/resume-render";
 import type { ResumeTemplateId, UILanguage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -71,6 +75,10 @@ export function TemplateGalleryField({
         {templates.map((template) => {
           const checked = selectedId === template.id;
           const tone = templatePreviewTone[template.id];
+          const previewModel = getTemplatePreviewModel({
+            templateId: template.id,
+            language: uiLanguage === "zh" ? "zh" : "en",
+          });
 
           return (
             <label
@@ -91,29 +99,7 @@ export function TemplateGalleryField({
                 value={template.id}
               />
 
-              <div className={cn("rounded-xl border p-2", tone.shell)}>
-                <div className={cn("h-1.5 w-16 rounded-full", tone.accent)} />
-                <div
-                  className={cn(
-                    "mt-2 grid gap-2",
-                    tone.column === "split" ? "grid-cols-[1.25fr_0.75fr]" : "grid-cols-1",
-                  )}
-                >
-                  <div className="space-y-1">
-                    <div className="h-1.5 w-20 rounded-full bg-slate-300/80" />
-                    <div className="h-1.5 w-full rounded-full bg-slate-200/80" />
-                    <div className="h-1.5 w-5/6 rounded-full bg-slate-200/80" />
-                    <div className="h-1.5 w-4/6 rounded-full bg-slate-200/80" />
-                  </div>
-                  {tone.column === "split" ? (
-                    <div className="space-y-1">
-                      <div className="h-1.5 w-full rounded-full bg-slate-200/80" />
-                      <div className="h-1.5 w-4/5 rounded-full bg-slate-200/80" />
-                      <div className="h-1.5 w-2/3 rounded-full bg-slate-200/80" />
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+              <TemplateMiniPreview model={previewModel} tone={tone} />
 
               <div className="mt-3 flex items-start justify-between gap-2">
                 <div>
@@ -158,3 +144,77 @@ export function TemplateGalleryField({
   );
 }
 
+function TemplateMiniPreview({
+  model,
+  tone,
+}: {
+  model: ResumeRenderModel;
+  tone: (typeof templatePreviewTone)[ResumeTemplateId];
+}) {
+  const primary = tone.column === "split" ? model.sections.slice(0, 2) : model.sections.slice(0, 3);
+  const secondary = tone.column === "split" ? model.sections.slice(2, 4) : [];
+
+  return (
+    <div className={cn("rounded-xl border p-2.5", tone.shell)}>
+      <div className="truncate text-[11px] font-semibold text-slate-800">{model.name}</div>
+      <div className={cn("mt-1 h-1 w-16 rounded-full", tone.accent)} />
+      <div
+        className={cn(
+          "mt-2 grid gap-2",
+          tone.column === "split" ? "grid-cols-[1.25fr_0.75fr]" : "grid-cols-1",
+        )}
+      >
+        <div className="space-y-2">
+          {primary.map((section) => (
+            <div className="space-y-1" key={section.key}>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {section.title}
+              </p>
+              {section.lines.slice(0, 1).map((line) => (
+                <p className="line-clamp-1 text-[9px] leading-4 text-slate-700" key={`${section.key}_${line}`}>
+                  {line}
+                </p>
+              ))}
+              {section.bullets.slice(0, 2).map((bullet) => (
+                <p
+                  className="line-clamp-1 text-[9px] leading-4 text-slate-700"
+                  key={`${section.key}_${bullet}`}
+                >
+                  • {bullet}
+                </p>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {tone.column === "split" ? (
+          <div className="space-y-2 border-l border-slate-200/80 pl-2">
+            {secondary.map((section) => (
+              <div className="space-y-1" key={`side_${section.key}`}>
+                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  {section.title}
+                </p>
+                {section.lines.slice(0, 1).map((line) => (
+                  <p
+                    className="line-clamp-1 text-[9px] leading-4 text-slate-700"
+                    key={`side_${section.key}_${line}`}
+                  >
+                    {line}
+                  </p>
+                ))}
+                {section.bullets.slice(0, 1).map((bullet) => (
+                  <p
+                    className="line-clamp-1 text-[9px] leading-4 text-slate-700"
+                    key={`side_${section.key}_${bullet}`}
+                  >
+                    • {bullet}
+                  </p>
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}

@@ -12,12 +12,14 @@ import { TemplateGalleryField } from "@/components/resume/template-gallery-field
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { SegmentedOptionGroup } from "@/components/ui/segmented-option-group";
 import { StatusBanner } from "@/components/ui/status-banner";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getSessionIdentity } from "@/lib/auth";
 import { getAppSnapshot } from "@/lib/data";
 import {
   generateBuildDraftAction,
+  parseJobPostingUrlAction,
   saveJobDescriptionAction,
   saveResumeAction,
 } from "@/lib/actions/dashboard";
@@ -228,6 +230,7 @@ export default async function BuildFlowPage({
   const jobDescriptionSaved = queryValue(params, "jobDescriptionSaved") === "1";
   const draftSaved = queryValue(params, "draft") === "1";
   const generated = queryValue(params, "generated") === "1";
+  const parsedFromUrl = queryValue(params, "parsed") === "1";
   const error = queryValue(params, "error");
 
   const banner = error
@@ -242,6 +245,15 @@ export default async function BuildFlowPage({
           description: t("Preview and edit your generated result below.", "可在下方预览并编辑生成结果。"),
           tone: "success" as const,
         }
+      : parsedFromUrl
+        ? {
+            title: t("Job posting parsed", "岗位链接解析完成"),
+            description: t(
+              "Extracted fields are filled below. Review and edit before saving.",
+              "已自动填充解析结果，请在下方复核并按需修改后保存。",
+            ),
+            tone: "success" as const,
+          }
       : resumeSaved && draftSaved
         ? {
             title: t("Draft saved", "草稿已保存"),
@@ -350,9 +362,12 @@ export default async function BuildFlowPage({
           </Card>
 
           <Card className="border-slate-200 bg-white/92 p-4 text-sm">
-            <p className="font-medium text-slate-900">{t("Output settings", "输出设置")}</p>
+            <p className="font-medium text-slate-900">{t("Output Studio", "Output Studio")}</p>
             <p className="mt-1 text-xs text-slate-600">
-              {t("Editable any time before generation.", "生成前可随时修改。")}
+              {t(
+                "Language, template, and generation controls live here.",
+                "语言、模板与生成控制统一在此管理。",
+              )}
             </p>
             <div className="mt-3 space-y-1 text-xs text-slate-600">
               <p>
@@ -365,24 +380,13 @@ export default async function BuildFlowPage({
                 ]) ?? templateId}
               </p>
             </div>
-            <Link
-              className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-sky-700 hover:text-sky-800"
-              href="/dashboard/flow/build?step=8"
-            >
-              {t("Edit output settings", "编辑输出设置")}
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </Card>
-
-          <Card className="border-slate-200 bg-white/92 p-4 text-sm">
-            <p className="font-medium text-slate-900">{t("Generation workspace", "生成工作台")}</p>
-            <p className="mt-1 text-xs text-slate-600">
-              {t(
-                "Jump to any section, update content, then regenerate.",
-                "可随时跳转任意步骤修改内容后再重生成。",
-              )}
-            </p>
             <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700"
+                href="/dashboard/flow/build?step=8"
+              >
+                {t("Output settings", "输出设置")}
+              </Link>
               <Link
                 className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700"
                 href="/dashboard/flow/build?step=9"
@@ -496,23 +500,25 @@ export default async function BuildFlowPage({
                   type="text"
                 />
               </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Career level (optional)</span>
-                <select
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              <div className="md:col-span-2">
+                <span className="mb-2 block text-sm font-medium text-slate-700">
+                  {t("Career level (optional)", "职业级别（可选）")}
+                </span>
+                <SegmentedOptionGroup
                   defaultValue={profile?.basicProfile.careerLevel ?? ""}
                   name="careerLevel"
-                >
-                  <option value="">Not specified</option>
-                  <option value="student">Student</option>
-                  <option value="entry">Entry</option>
-                  <option value="mid">Mid</option>
-                  <option value="senior">Senior</option>
-                  <option value="staff_plus">Staff+</option>
-                  <option value="manager">Manager</option>
-                  <option value="director_plus">Director+</option>
-                </select>
-              </label>
+                  options={[
+                    { value: "", label: t("Not specified", "未指定") },
+                    { value: "student", label: t("Student", "学生") },
+                    { value: "entry", label: t("Entry", "初级") },
+                    { value: "mid", label: t("Mid", "中级") },
+                    { value: "senior", label: t("Senior", "高级") },
+                    { value: "staff_plus", label: t("Staff+", "资深专家") },
+                    { value: "manager", label: t("Manager", "管理者") },
+                    { value: "director_plus", label: t("Director+", "总监及以上") },
+                  ]}
+                />
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -991,17 +997,50 @@ export default async function BuildFlowPage({
 
       {step === 7 ? (
         <Card className="space-y-5 border-slate-200 bg-white/92 p-6">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+            <p className="text-sm font-medium text-slate-900">
+              {t("Parse from public job URL", "从公开岗位链接自动解析")}
+            </p>
+            <p className="mt-1 text-xs text-slate-600">
+              {t(
+                "Paste a public job posting URL. ResumeForge will fetch the page, extract structured fields with AI, then you can edit everything below.",
+                "粘贴公开岗位链接。ResumeForge 会抓取页面并用 AI 提取结构化字段，你可在下方继续编辑。",
+              )}
+            </p>
+            <form action={parseJobPostingUrlAction} className="mt-3 flex flex-col gap-3 sm:flex-row">
+              <input name="currentStep" type="hidden" value="7" />
+              <input name="jobDescriptionId" type="hidden" value={jobDescription?.id ?? ""} />
+              <input name="returnTo" type="hidden" value="/dashboard/flow/build" />
+              <input
+                className="h-11 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-sm"
+                defaultValue={jobDescription?.briefData?.sourceUrl ?? ""}
+                name="jobPostingUrl"
+                placeholder="https://company.com/careers/job-posting"
+                type="url"
+              />
+              <SubmitButton pendingLabel={t("Parsing...", "解析中...")}>
+                {t("Parse job posting", "解析岗位链接")}
+              </SubmitButton>
+            </form>
+          </div>
+
           <p className="text-sm text-slate-600">
-            Add role context. More detail improves matching quality, but only target role is required to continue.
+            {t(
+              "Add role context manually or refine the parsed results. More detail improves tailoring quality.",
+              "可手动补充岗位信息，或基于解析结果继续完善。信息越完整，后续定向优化越准确。",
+            )}
           </p>
           <form action={saveJobDescriptionAction} className="space-y-4">
             <input name="currentStep" type="hidden" value="7" />
             <input name="jobDescriptionId" type="hidden" value={jobDescription?.id ?? ""} />
             <input name="returnTo" type="hidden" value="/dashboard/flow/build" />
+            <input name="sourceUrl" type="hidden" value={jobDescription?.briefData?.sourceUrl ?? ""} />
 
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Target company (optional)</span>
+                <span className="mb-2 block text-sm font-medium text-slate-700">
+                  {t("Target company (optional)", "目标公司（可选）")}
+                </span>
                 <input
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
                   defaultValue={jobDescription?.company ?? ""}
@@ -1010,17 +1049,21 @@ export default async function BuildFlowPage({
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Target role</span>
+                <span className="mb-2 block text-sm font-medium text-slate-700">
+                  {t("Target role", "目标岗位")}
+                </span>
                 <input
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
                   defaultValue={jobDescription?.role ?? ""}
                   name="role"
-                  placeholder="e.g. Software Engineer"
+                  placeholder={t("e.g. Software Engineer", "例如：后端工程师")}
                   type="text"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Target location (optional)</span>
+                <span className="mb-2 block text-sm font-medium text-slate-700">
+                  {t("Target location (optional)", "目标地点（可选）")}
+                </span>
                 <input
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
                   defaultValue={jobDescription?.location ?? ""}
@@ -1028,58 +1071,84 @@ export default async function BuildFlowPage({
                   type="text"
                 />
               </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Employment type (optional)</span>
-                <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              <div className="space-y-2">
+                <span className="block text-sm font-medium text-slate-700">
+                  {t("Employment type (optional)", "雇佣类型（可选）")}
+                </span>
+                <SegmentedOptionGroup
                   defaultValue={jobDescription?.briefData?.employmentType ?? ""}
                   name="employmentType"
-                  placeholder="Full-time / Internship"
-                  type="text"
+                  options={[
+                    { value: "", label: t("Not specified", "未指定") },
+                    { value: "Full-time", label: t("Full-time", "全职") },
+                    { value: "Internship", label: t("Internship", "实习") },
+                    { value: "Contract", label: t("Contract", "合同制") },
+                  ]}
                 />
-              </label>
+              </div>
             </div>
             <textarea
               className="min-h-[180px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
               defaultValue={jobDescription?.description ?? ""}
               name="description"
-              placeholder="Full job description text (optional but recommended)"
+              placeholder={t(
+                "Full job description text (optional but recommended)",
+                "完整岗位描述文本（可选但强烈推荐）",
+              )}
             />
-            <div className="grid gap-4 md:grid-cols-2">
-              <input
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+            <div className="space-y-2">
+              <span className="block text-sm font-medium text-slate-700">
+                {t("Seniority level (optional)", "级别要求（可选）")}
+              </span>
+              <SegmentedOptionGroup
+                className="md:grid-cols-4"
                 defaultValue={jobDescription?.briefData?.seniorityLevel ?? ""}
                 name="seniorityLevel"
-                placeholder="Seniority level (optional)"
-                type="text"
+                options={[
+                  { value: "", label: t("Not specified", "未指定") },
+                  { value: "Entry", label: t("Entry", "初级") },
+                  { value: "Mid", label: t("Mid", "中级") },
+                  { value: "Senior", label: t("Senior", "高级") },
+                ]}
               />
-              <input
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+            </div>
+            <div className="space-y-2">
+              <span className="block text-sm font-medium text-slate-700">
+                {t("Work mode (optional)", "办公模式（可选）")}
+              </span>
+              <SegmentedOptionGroup
                 defaultValue={jobDescription?.briefData?.workMode ?? ""}
                 name="workMode"
-                placeholder="Work mode (onsite/hybrid/remote)"
-                type="text"
+                options={[
+                  { value: "", label: t("Not specified", "未指定") },
+                  { value: "Onsite", label: t("Onsite", "现场") },
+                  { value: "Hybrid", label: t("Hybrid", "混合") },
+                  { value: "Remote", label: t("Remote", "远程") },
+                ]}
               />
             </div>
             <input
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
               defaultValue={jobDescription?.briefData?.topRequiredSkills.join(", ") ?? ""}
               name="topRequiredSkills"
-              placeholder="Key required skills (comma-separated, optional)"
+              placeholder={t(
+                "Key required skills (comma-separated, optional)",
+                "关键必备技能（逗号分隔，可选）",
+              )}
               type="text"
             />
             <input
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
               defaultValue={jobDescription?.briefData?.emphasizeKeywords.join(", ") ?? ""}
               name="emphasizeKeywords"
-              placeholder="Keywords to emphasize (optional)"
+              placeholder={t("Keywords to emphasize (optional)", "强调关键词（可选）")}
               type="text"
             />
             <textarea
               className="min-h-[80px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
               defaultValue={jobDescription?.briefData?.responsibilitiesSummary ?? ""}
               name="responsibilitiesSummary"
-              placeholder="Hiring priorities / role emphasis (optional)"
+              placeholder={t("Hiring priorities / role emphasis (optional)", "招聘重点 / 岗位侧重点（可选）")}
             />
 
             <div className="flex flex-wrap gap-3">
@@ -1091,10 +1160,10 @@ export default async function BuildFlowPage({
                 Back
               </Link>
               <SubmitButton name="intent" pendingLabel="Saving draft..." value="draft" variant="outline">
-                Save draft
+                {t("Save draft", "保存草稿")}
               </SubmitButton>
               <SubmitButton name="nextStep" pendingLabel="Saving..." value="8">
-                Continue to style preferences
+                {t("Continue to output studio", "继续到输出工作台")}
               </SubmitButton>
             </div>
           </form>
@@ -1106,8 +1175,8 @@ export default async function BuildFlowPage({
           <p className="text-sm text-slate-600">
             {pickText(
               uiLanguage,
-              "Set output preferences before generation. You can revisit this section any time.",
-              "设置生成前的输出偏好。你可以随时回到本分段修改。",
+              "Output Studio controls language, template, and generation style. Revisit any time before generating.",
+              "Output Studio 用于配置语言、模板和生成风格。生成前可随时回到此处修改。",
             )}
           </p>
           <form action={saveResumeAction} className="space-y-4">
@@ -1117,44 +1186,113 @@ export default async function BuildFlowPage({
             <input name="intakeMode" type="hidden" value="guided" />
             <input name="title" type="hidden" value={resume?.title ?? "Build From Scratch Draft"} />
 
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">
-                {pickText(uiLanguage, "Resume style", "简历风格")}
-              </span>
-              <input
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-                defaultValue={profile?.preferences.resumeStyle ?? ""}
-                name="resumeStyle"
-                placeholder="concise / detailed / technical / achievement-focused"
-                type="text"
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+              <p className="text-sm font-medium text-slate-900">
+                {pickText(uiLanguage, "Output language", "输出语言")}
+              </p>
+              <p className="mt-1 text-xs text-slate-600">
+                {pickText(
+                  uiLanguage,
+                  "Choose the final language of the generated resume.",
+                  "选择最终生成简历的语言。",
+                )}
+              </p>
+              <SegmentedOptionGroup
+                className="mt-3 grid-cols-2"
+                defaultValue={profile?.preferences.outputLanguage || "en"}
+                name="outputLanguage"
+                options={[
+                  {
+                    value: "en",
+                    label: "English",
+                    hint: pickText(uiLanguage, "U.S. recruiter default", "美区投递默认"),
+                  },
+                  {
+                    value: "zh",
+                    label: "中文",
+                    hint: pickText(uiLanguage, "Chinese output", "中文简历输出"),
+                  },
+                ]}
               />
-            </label>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">
-                  {pickText(uiLanguage, "Resume output language", "简历输出语言")}
-                </span>
-                <select
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-                  defaultValue={profile?.preferences.outputLanguage ?? "en"}
-                  name="outputLanguage"
-                >
-                  <option value="en">English</option>
-                  <option value="zh">中文</option>
-                </select>
-              </label>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600">
-                <p className="font-medium text-slate-800">
-                  {pickText(uiLanguage, "Template matching tip", "模板选择提示")}
-                </p>
-                <p className="mt-1">
-                  {pickText(
-                    uiLanguage,
-                    "ATS-heavy applications usually perform best with Classic ATS-safe. For portfolio-heavy roles, use Technical / product-focused.",
-                    "若投递流程偏 ATS，优先使用“经典 ATS 安全”；若项目比重更高，可选“技术与产品导向”。",
-                  )}
-                </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+              <p className="text-sm font-medium text-slate-900">
+                {pickText(uiLanguage, "Generation style", "生成风格")}
+              </p>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-xs font-medium text-slate-600">
+                    {pickText(uiLanguage, "Resume style", "简历主风格")}
+                  </span>
+                  <input
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                    defaultValue={profile?.preferences.resumeStyle ?? ""}
+                    name="resumeStyle"
+                    placeholder={pickText(
+                      uiLanguage,
+                      "concise / technical / achievement-focused",
+                      "简洁 / 技术导向 / 成果导向",
+                    )}
+                    type="text"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-xs font-medium text-slate-600">
+                    {pickText(uiLanguage, "Summary style (optional)", "摘要风格（可选）")}
+                  </span>
+                  <input
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                    name="summaryStyle"
+                    placeholder={pickText(uiLanguage, "direct / narrative / impact-first", "直接 / 叙事 / 成果优先")}
+                    type="text"
+                  />
+                </label>
               </div>
+
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div>
+                  <span className="mb-2 block text-xs font-medium text-slate-600">
+                    {pickText(uiLanguage, "Page length preference", "页数偏好")}
+                  </span>
+                  <SegmentedOptionGroup
+                    defaultValue=""
+                    name="onePagePreference"
+                    options={[
+                      { value: "", label: pickText(uiLanguage, "Not specified", "未指定") },
+                      { value: "prefer_one_page", label: pickText(uiLanguage, "Prefer one page", "优先一页") },
+                      { value: "allow_two_pages", label: pickText(uiLanguage, "Allow two pages", "允许两页") },
+                    ]}
+                  />
+                </div>
+                <div>
+                  <span className="mb-2 block text-xs font-medium text-slate-600">
+                    {pickText(uiLanguage, "Tone preference", "语气偏好")}
+                  </span>
+                  <SegmentedOptionGroup
+                    defaultValue=""
+                    name="studentProfessionalPolish"
+                    options={[
+                      { value: "", label: pickText(uiLanguage, "Not specified", "未指定") },
+                      { value: "student_friendly", label: pickText(uiLanguage, "Student-friendly", "学生友好") },
+                      { value: "professional_polish", label: pickText(uiLanguage, "Professional polish", "专业强化") },
+                    ]}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 text-xs text-slate-600">
+              <p className="font-medium text-slate-800">
+                {pickText(uiLanguage, "Template matching tip", "模板选择提示")}
+              </p>
+              <p className="mt-1">
+                {pickText(
+                  uiLanguage,
+                  "ATS-heavy applications usually perform best with Classic ATS-safe. For portfolio-heavy roles, use Technical / product-focused.",
+                  "若投递流程偏 ATS，优先使用“经典 ATS 安全”；若项目比重更高，可选“技术与产品导向”。",
+                )}
+              </p>
             </div>
 
             <TemplateGalleryField
@@ -1163,51 +1301,20 @@ export default async function BuildFlowPage({
               uiLanguage={uiLanguage}
             />
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Summary style (optional)</span>
-              <input
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-                name="summaryStyle"
-                placeholder="direct, narrative, impact-first"
-                type="text"
-              />
-            </label>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">One-page preference (optional)</span>
-                <select
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-                  name="onePagePreference"
-                  defaultValue=""
-                >
-                  <option value="">Not specified</option>
-                  <option value="prefer_one_page">Prefer one page</option>
-                  <option value="allow_two_pages">Two pages allowed</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Tone preference (optional)</span>
-                <select
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-                  name="studentProfessionalPolish"
-                  defaultValue=""
-                >
-                  <option value="">Not specified</option>
-                  <option value="student_friendly">Student-friendly</option>
-                  <option value="professional_polish">Professional polish</option>
-                </select>
-              </label>
-            </div>
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Sections to emphasize (optional)</span>
+              <span className="mb-2 block text-sm font-medium text-slate-700">
+                {pickText(uiLanguage, "Sections to emphasize (optional)", "重点强化分段（可选）")}
+              </span>
               <input
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
                 name="sectionEmphasis"
-                placeholder="Projects, experience, leadership"
+                placeholder={pickText(uiLanguage, "Projects, experience, leadership", "项目、经历、领导力")}
                 type="text"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Keyword emphasis (optional)</span>
+              <span className="mb-2 block text-sm font-medium text-slate-700">
+                {pickText(uiLanguage, "Keyword emphasis (optional)", "关键词强调（可选）")}
+              </span>
               <input
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
                 defaultValue={profile?.preferences.keywordEmphasis ?? ""}
@@ -1216,7 +1323,9 @@ export default async function BuildFlowPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Industry/job family preference (optional)</span>
+              <span className="mb-2 block text-sm font-medium text-slate-700">
+                {pickText(uiLanguage, "Industry/job family preference (optional)", "行业/岗位族偏好（可选）")}
+              </span>
               <input
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
                 defaultValue={profile?.preferences.industryPreference ?? ""}
@@ -1231,10 +1340,10 @@ export default async function BuildFlowPage({
                 href="/dashboard/flow/build?step=7"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back
+                {pickText(uiLanguage, "Back", "返回")}
               </Link>
               <SubmitButton name="intent" pendingLabel="Saving draft..." value="draft" variant="outline">
-                Save draft
+                {pickText(uiLanguage, "Save output settings", "保存输出设置")}
               </SubmitButton>
               <SubmitButton name="nextStep" pendingLabel="Saving..." value="9">
                 {pickText(uiLanguage, "Continue to review", "继续到复核")}

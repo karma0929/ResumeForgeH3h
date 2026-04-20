@@ -259,6 +259,7 @@ export function createDefaultResumeProfileData(mode: ResumeIntakeMode = "quick")
 
 export function createDefaultTargetRoleBriefData(): TargetRoleBriefData {
   return {
+    sourceUrl: "",
     seniorityLevel: "",
     employmentType: "",
     workMode: "",
@@ -339,6 +340,7 @@ export function normalizeTargetRoleBriefData(
   }
 
   return {
+    sourceUrl: clean(value.sourceUrl),
     seniorityLevel: clean(value.seniorityLevel),
     employmentType: clean(value.employmentType),
     workMode: clean(value.workMode),

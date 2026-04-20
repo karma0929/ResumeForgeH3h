@@ -21,6 +21,7 @@ import {
 } from "@/lib/data";
 import { assertUsageCooldown, getUsageUpgradePrompt, hasUsageRemaining } from "@/lib/usage";
 import { assertEnumValue, readStringField } from "@/lib/validation";
+import { parseJobPostingFromUrl } from "@/lib/services/job-posting-parser";
 import type {
   CareerLevel,
   ResumeIntakeMode,
@@ -604,6 +605,12 @@ export async function saveJobDescriptionAction(formData: FormData) {
       : (existingBrief?.hiringPriorities ?? []);
 
     const briefData: TargetRoleBriefData = {
+      sourceUrl: readValueWithFallback(
+        formData,
+        "sourceUrl",
+        { max: 600 },
+        existingBrief?.sourceUrl ?? "",
+      ),
       seniorityLevel: readValueWithFallback(
         formData,
         "seniorityLevel",
@@ -708,6 +715,67 @@ export async function saveJobDescriptionAction(formData: FormData) {
       buildUploadRedirectPath({
         basePath: returnTo,
         step,
+        query: { error: message },
+      }),
+    );
+  }
+}
+
+export async function parseJobPostingUrlAction(formData: FormData) {
+  try {
+    const snapshot = await requireSnapshot();
+    const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/build" });
+    const returnTo =
+      returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/dashboard/flow/build";
+    const step = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "7" })) ?? 7;
+    const sourceUrl = readStringField(formData, "jobPostingUrl", {
+      required: true,
+      max: 600,
+    });
+    const jobDescriptionId = readStringField(formData, "jobDescriptionId", { max: 120 });
+    const existingJob = jobDescriptionId
+      ? snapshot.jobDescriptions.find((item) => item.id === jobDescriptionId) ?? snapshot.jobDescriptions[0]
+      : snapshot.jobDescriptions[0];
+
+    const extracted = await parseJobPostingFromUrl({ sourceUrl });
+
+    await createJobDescriptionRecord({
+      userId: snapshot.user.id,
+      jobDescriptionId: existingJob?.id,
+      company: extracted.company || existingJob?.company || "Target Company",
+      role: extracted.role || existingJob?.role || "Target Role",
+      location: extracted.location || existingJob?.location || "",
+      description: extracted.cleanedJobDescription,
+      briefData: extracted.briefData,
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/flow/build");
+    revalidatePath("/dashboard/upload");
+    redirect(
+      buildUploadRedirectPath({
+        basePath: returnTo,
+        step,
+        query: {
+          parsed: "1",
+          jobDescriptionSaved: "1",
+        },
+      }),
+    );
+  } catch (error) {
+    rethrowRedirect(error);
+    console.error("parseJobPostingUrlAction failed", {
+      returnTo: readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/build" }),
+      step: readStringField(formData, "currentStep", { max: 10, fallback: "7" }),
+      sourceUrl: readStringField(formData, "jobPostingUrl", { max: 600, fallback: "" }),
+    });
+    console.error(error);
+    const message =
+      error instanceof ValidationError ? error.message : "Unable to parse this job posting URL.";
+    redirect(
+      buildUploadRedirectPath({
+        basePath: "/dashboard/flow/build",
+        step: 7,
         query: { error: message },
       }),
     );

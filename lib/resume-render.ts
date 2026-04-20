@@ -116,6 +116,85 @@ export interface ResumeRenderModel {
   footer: string;
 }
 
+export function getTemplatePreviewModel(input: {
+  templateId: ResumeTemplateId;
+  language: ResumeOutputLanguage;
+}): ResumeRenderModel {
+  const language = input.language;
+  const zh = language === "zh";
+
+  return {
+    language,
+    templateId: input.templateId,
+    name: zh ? "王晨 · 软件工程师" : "Alex Chen · Software Engineer",
+    headline: zh
+      ? "后端与平台工程 · 旧金山湾区"
+      : "Backend & Platform Engineer · San Francisco Bay Area",
+    contactLine: zh
+      ? "邮箱：alex@example.com ｜ GitHub: github.com/alexchen"
+      : "Email: alex@example.com | GitHub: github.com/alexchen",
+    summary: zh
+      ? "4 年后端与平台开发经验，专注高可用 API、可观测性与交付效率优化。擅长将复杂需求转化为稳定可扩展的工程方案。"
+      : "4 years of backend and platform engineering experience focused on scalable APIs, observability, and delivery velocity. Strong track record translating ambiguous product needs into reliable systems.",
+    sections: [
+      {
+        key: "skills",
+        title: zh ? "技能" : "SKILLS",
+        lines: [
+          zh
+            ? "TypeScript, Node.js, Go, PostgreSQL, Redis, Docker, AWS"
+            : "TypeScript, Node.js, Go, PostgreSQL, Redis, Docker, AWS",
+        ],
+        bullets: [],
+      },
+      {
+        key: "experience",
+        title: zh ? "工作经历" : "EXPERIENCE",
+        lines: [
+          zh
+            ? "NovaPay ｜ 后端工程师 ｜ 2022–至今"
+            : "NovaPay | Backend Engineer | 2022–Present",
+        ],
+        bullets: [
+          zh
+            ? "重构账务对账流水线，将失败重试率降低 38%，并将日终处理时间缩短 27%。"
+            : "Re-architected reconciliation pipeline, reducing failed retry volume by 38% and end-of-day processing time by 27%.",
+          zh
+            ? "主导服务可观测性标准化，平均故障定位时间从 42 分钟降至 15 分钟。"
+            : "Led observability standardization, reducing average incident diagnosis time from 42 minutes to 15 minutes.",
+        ],
+      },
+      {
+        key: "projects",
+        title: zh ? "项目经历" : "PROJECTS",
+        lines: [
+          zh
+            ? "内部发布平台：构建灰度发布控制台，支持跨服务版本回滚。"
+            : "Internal Release Control: Built staged rollout console with cross-service rollback orchestration.",
+        ],
+        bullets: [],
+      },
+      {
+        key: "education",
+        title: zh ? "教育背景" : "EDUCATION",
+        lines: [
+          zh
+            ? "伊利诺伊大学香槟分校 ｜ 计算机科学硕士"
+            : "University of Illinois Urbana-Champaign | M.S. Computer Science",
+        ],
+        bullets: [],
+      },
+      {
+        key: "links",
+        title: zh ? "链接" : "LINKS",
+        lines: [],
+        bullets: ["linkedin.com/in/alexchen", "github.com/alexchen"],
+      },
+    ],
+    footer: zh ? "模板预览 · ResumeForge" : "Template preview · ResumeForge",
+  };
+}
+
 export function renderModelAsPlainText(model: ResumeRenderModel) {
   const lines: string[] = [];
   lines.push(model.name);
