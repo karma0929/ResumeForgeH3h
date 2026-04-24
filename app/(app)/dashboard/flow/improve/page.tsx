@@ -18,10 +18,10 @@ import { StatusBanner } from "@/components/ui/status-banner";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { TokenInputField } from "@/components/ui/token-input-field";
 import {
+  importResumeSourceAction,
   runAnalysisAction,
   runTailoredDraftAction,
   saveJobDescriptionAction,
-  saveResumeAction,
   summarizeTargetRoleAction,
 } from "@/lib/actions/dashboard";
 import { getSessionIdentity } from "@/lib/auth";
@@ -317,13 +317,30 @@ export default async function ImproveFlowPage({
                     "粘贴你当前简历文本，ResumeForge 会自动解析并作为优化基线。",
                   )}
                 </p>
-                <form action={saveResumeAction} className="space-y-4">
+                <form action={importResumeSourceAction} className="space-y-4">
                   <input name="currentStep" type="hidden" value="1" />
                   <input name="nextStep" type="hidden" value="2" />
                   <input name="returnTo" type="hidden" value="/dashboard/flow/improve" />
                   <input name="resumeId" type="hidden" value={resume?.id ?? ""} />
-                  <input name="intakeMode" type="hidden" value="quick" />
                   <input name="title" type="hidden" value={resume?.title || "Imported Resume"} />
+
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-slate-200">
+                      {t("Upload resume file (PDF/DOCX/TXT)", "上传简历文件（PDF/DOCX/TXT）")}
+                    </span>
+                    <input
+                      accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                      className="block h-11 w-full cursor-pointer rounded-2xl border border-slate-600/55 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 file:mr-3 file:cursor-pointer file:rounded-full file:border-0 file:bg-cyan-600/85 file:px-3 file:py-1 file:text-xs file:font-medium file:text-white hover:file:bg-cyan-500"
+                      name="resumeFile"
+                      type="file"
+                    />
+                    <p className="mt-2 text-xs text-slate-400">
+                      {t(
+                        "If upload fails or format is not ideal, paste your resume text below.",
+                        "若上传失败或格式不理想，可直接在下方粘贴简历文本。",
+                      )}
+                    </p>
+                  </label>
 
                   <label className="block">
                     <span className="mb-2 block text-sm font-medium text-slate-200">{t("Resume text", "简历文本")}</span>

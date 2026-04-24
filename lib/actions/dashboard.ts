@@ -22,6 +22,7 @@ import {
 import { assertUsageCooldown, getUsageUpgradePrompt, hasUsageRemaining } from "@/lib/usage";
 import { assertEnumValue, readStringField } from "@/lib/validation";
 import { parseJobPostingFromUrl, summarizeJobPostingText } from "@/lib/services/job-posting-parser";
+import { extractResumeTextFromSource } from "@/lib/services/resume-source-import";
 import { getAIService } from "@/lib/ai";
 import type { ExtractedJobPostingOutput } from "@/lib/ai/types";
 import { pickText } from "@/lib/i18n";
@@ -158,6 +159,10 @@ const validationMessageZhMap: Record<string, string> = {
     "该页面存在反爬限制，建议手动粘贴岗位描述文本。",
   "Job description text must be at least 120 characters.": "岗位描述文本至少需要 120 个字符。",
   "Provide a public job posting URL or paste job description text.": "请提供岗位链接或粘贴岗位描述文本。",
+  "Upload a PDF, DOCX, TXT file or paste resume text.": "请上传 PDF/DOCX/TXT 文件，或直接粘贴简历文本。",
+  "Unsupported file type. Please upload PDF, DOCX, or TXT.": "文件类型不支持，请上传 PDF/DOCX/TXT。",
+  "Resume file is too large. Maximum size is 8 MB.": "简历文件过大，最大支持 8 MB。",
+  "Extracted text is too short. Please paste more complete resume text.": "解析出的文本过短，请粘贴更完整的简历内容。",
 };
 
 function localizeActionErrorMessage(input: {
@@ -624,6 +629,74 @@ export async function saveResumeAction(formData: FormData) {
     const returnTo =
       returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/dashboard/upload";
     const step = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "" }));
+    redirect(
+      buildUploadRedirectPath({
+        basePath: returnTo,
+        step,
+        query: { error: message },
+      }),
+    );
+  }
+}
+
+export async function importResumeSourceAction(formData: FormData) {
+  try {
+    const snapshot = await requireSnapshot();
+    const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/improve" });
+    const returnTo = safeInternalPath(returnToRaw, "/dashboard/flow/improve");
+    const currentStep = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "1" })) ?? 1;
+    const nextStep = parseWizardStep(readStringField(formData, "nextStep", { max: 10, fallback: "2" })) ?? 2;
+    const resumeId = readStringField(formData, "resumeId", { max: 120 });
+    const existingResume = resumeId
+      ? snapshot.resumes.find((resume) => resume.id === resumeId) ?? snapshot.resumes[0]
+      : snapshot.resumes[0];
+    const titleInput = readStringField(formData, "title", { max: 120, fallback: existingResume?.title ?? "" });
+    const title = titleInput || "Imported Resume";
+    const uploadedFile = formData.get("resumeFile");
+    const file = uploadedFile instanceof File ? uploadedFile : null;
+    const pastedText = readStringField(formData, "quickResumeText", { max: 40000, fallback: "" });
+    const originalText = await extractResumeTextFromSource({
+      file,
+      pastedText,
+    });
+
+    await createResumeRecord({
+      userId: snapshot.user.id,
+      resumeId: existingResume?.id,
+      title,
+      originalText,
+      intakeMode: "quick",
+      profileData: existingResume?.profileData ?? null,
+      createVersion: true,
+      preferOriginalText: true,
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/analysis");
+    revalidatePath("/dashboard/flow/improve");
+    redirect(
+      buildUploadRedirectPath({
+        basePath: returnTo,
+        step: nextStep ?? currentStep,
+        query: {
+          resumeSaved: "1",
+        },
+      }),
+    );
+  } catch (error) {
+    rethrowRedirect(error);
+    const uiLanguage = await getUiLanguage();
+    console.error("importResumeSourceAction failed");
+    console.error(error);
+    const message = localizeActionErrorMessage({
+      error,
+      uiLanguage,
+      fallbackEn: "Unable to import resume source.",
+      fallbackZh: "导入简历失败，请稍后重试。",
+    });
+    const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/improve" });
+    const returnTo = safeInternalPath(returnToRaw, "/dashboard/flow/improve");
+    const step = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "1" })) ?? 1;
     redirect(
       buildUploadRedirectPath({
         basePath: returnTo,
