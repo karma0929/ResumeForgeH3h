@@ -22,6 +22,7 @@ import {
 import { assertUsageCooldown, getUsageUpgradePrompt, hasUsageRemaining } from "@/lib/usage";
 import { assertEnumValue, readStringField } from "@/lib/validation";
 import { parseJobPostingFromUrl } from "@/lib/services/job-posting-parser";
+import { getAIService } from "@/lib/ai";
 import { pickText } from "@/lib/i18n";
 import { getUiLanguage } from "@/lib/i18n-server";
 import type {
@@ -991,6 +992,57 @@ export async function runAnalysisAction(formData: FormData) {
         ? error.message
         : "Unable to run analysis.";
     redirect(`/dashboard/analysis?error=${encodeURIComponent(message)}`);
+  }
+}
+
+export async function regenerateAnalysisSuggestionAction(formData: FormData) {
+  try {
+    const snapshot = await requireSnapshot();
+    const resumeId = readStringField(formData, "resumeId", { required: true, max: 100 });
+    const jobDescriptionId = readStringField(formData, "jobDescriptionId", { required: true, max: 100 });
+    const sourceText = readStringField(formData, "sourceText", { required: true, max: 4000 });
+    const mode = readStringField(formData, "mode", { max: 50, fallback: "role_aligned" });
+
+    const resume = snapshot.resumes.find((item) => item.id === resumeId);
+    const jobDescription = snapshot.jobDescriptions.find((item) => item.id === jobDescriptionId);
+
+    if (!resume || !jobDescription) {
+      throw new ValidationError("Resume or job description could not be found.");
+    }
+
+    const rewriteMode =
+      mode === "concise"
+        ? "shorter"
+        : mode === "technical"
+          ? "more_technical"
+          : mode === "impact_focused"
+            ? "leadership_focused"
+            : "tailored_to_jd";
+
+    const ai = getAIService({ preferLive: true });
+    const result = await ai.rewriteBullet({
+      bullet: sourceText,
+      mode: rewriteMode,
+      jobDescriptionText: jobDescription.description,
+      resumeText: resume.originalText,
+    });
+
+    return {
+      success: true,
+      suggestion: result.after,
+      whyBetter: result.whyBetter,
+      usedMode: rewriteMode,
+    } as const;
+  } catch (error) {
+    console.error("regenerateAnalysisSuggestionAction failed");
+    console.error(error);
+    return {
+      success: false,
+      error:
+        error instanceof ValidationError || error instanceof RateLimitError
+          ? error.message
+          : "Unable to regenerate suggestion right now.",
+    } as const;
   }
 }
 
