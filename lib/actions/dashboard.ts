@@ -21,8 +21,9 @@ import {
 } from "@/lib/data";
 import { assertUsageCooldown, getUsageUpgradePrompt, hasUsageRemaining } from "@/lib/usage";
 import { assertEnumValue, readStringField } from "@/lib/validation";
-import { parseJobPostingFromUrl } from "@/lib/services/job-posting-parser";
+import { parseJobPostingFromUrl, summarizeJobPostingText } from "@/lib/services/job-posting-parser";
 import { getAIService } from "@/lib/ai";
+import type { ExtractedJobPostingOutput } from "@/lib/ai/types";
 import { pickText } from "@/lib/i18n";
 import { getUiLanguage } from "@/lib/i18n-server";
 import type {
@@ -117,6 +118,25 @@ function buildUploadRedirectPath(input: {
   return queryString ? `${pathname}?${queryString}` : pathname;
 }
 
+function buildReturnPath(basePath: string, query: Record<string, string>) {
+  const [pathname, existingQuery = ""] = basePath.split("?");
+  const params = new URLSearchParams(existingQuery);
+
+  for (const [key, value] of Object.entries(query)) {
+    params.set(key, value);
+  }
+
+  const queryString = params.toString();
+  return queryString ? `${pathname}?${queryString}` : pathname;
+}
+
+function safeInternalPath(value: string, fallback: string) {
+  if (!value.startsWith("/") || value.startsWith("//")) {
+    return fallback;
+  }
+  return value;
+}
+
 function rethrowRedirect(error: unknown) {
   if (isRedirectError(error)) {
     throw error;
@@ -136,6 +156,8 @@ const validationMessageZhMap: Record<string, string> = {
   "Could not extract enough readable text from that URL.": "未能从该链接提取足够文本内容。",
   "This job posting page appears protected by anti-bot checks. Paste the job description text manually.":
     "该页面存在反爬限制，建议手动粘贴岗位描述文本。",
+  "Job description text must be at least 120 characters.": "岗位描述文本至少需要 120 个字符。",
+  "Provide a public job posting URL or paste job description text.": "请提供岗位链接或粘贴岗位描述文本。",
 };
 
 function localizeActionErrorMessage(input: {
@@ -796,23 +818,47 @@ export async function saveJobDescriptionAction(formData: FormData) {
   }
 }
 
-export async function parseJobPostingUrlAction(formData: FormData) {
+export async function summarizeTargetRoleAction(formData: FormData) {
   try {
     const snapshot = await requireSnapshot();
     const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/build" });
     const returnTo =
       returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/dashboard/flow/build";
     const step = parseWizardStep(readStringField(formData, "currentStep", { max: 10, fallback: "7" })) ?? 7;
-    const sourceUrl = readStringField(formData, "jobPostingUrl", {
-      required: true,
-      max: 600,
-    });
+    const sourceUrl = readStringField(formData, "jobPostingUrl", { max: 600, fallback: "" });
+    const pastedText = readStringField(formData, "jobDescriptionText", { max: 20000, fallback: "" });
+    const normalizedUrl = sourceUrl.trim();
+    const normalizedText = pastedText.trim();
+
+    if (!normalizedUrl && !normalizedText) {
+      throw new ValidationError("Provide a public job posting URL or paste job description text.");
+    }
+
     const jobDescriptionId = readStringField(formData, "jobDescriptionId", { max: 120 });
     const existingJob = jobDescriptionId
       ? snapshot.jobDescriptions.find((item) => item.id === jobDescriptionId) ?? snapshot.jobDescriptions[0]
       : snapshot.jobDescriptions[0];
 
-    const extracted = await parseJobPostingFromUrl({ sourceUrl });
+    let extracted: ExtractedJobPostingOutput;
+    if (normalizedUrl) {
+      try {
+        extracted = await parseJobPostingFromUrl({ sourceUrl: normalizedUrl });
+      } catch (error) {
+        if (!normalizedText) {
+          throw error;
+        }
+        console.error("summarizeTargetRoleAction URL parse failed, falling back to pasted text");
+        console.error(error);
+        extracted = await summarizeJobPostingText({
+          sourceUrl: normalizedUrl,
+          jobPostingText: normalizedText,
+        });
+      }
+    } else {
+      extracted = await summarizeJobPostingText({
+        jobPostingText: normalizedText,
+      });
+    }
 
     await createJobDescriptionRecord({
       userId: snapshot.user.id,
@@ -840,17 +886,18 @@ export async function parseJobPostingUrlAction(formData: FormData) {
   } catch (error) {
     rethrowRedirect(error);
     const uiLanguage = await getUiLanguage();
-    console.error("parseJobPostingUrlAction failed", {
+    console.error("summarizeTargetRoleAction failed", {
       returnTo: readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/build" }),
       step: readStringField(formData, "currentStep", { max: 10, fallback: "7" }),
       sourceUrl: readStringField(formData, "jobPostingUrl", { max: 600, fallback: "" }),
+      textLength: readStringField(formData, "jobDescriptionText", { max: 20000, fallback: "" }).length,
     });
     console.error(error);
     const message = localizeActionErrorMessage({
       error,
       uiLanguage,
-      fallbackEn: "Unable to parse this job posting URL.",
-      fallbackZh: "无法解析该岗位链接，请手动补充岗位文本。",
+      fallbackEn: "Unable to summarize this target role input.",
+      fallbackZh: "无法总结该岗位输入，请稍后重试或手动调整。",
     });
     const returnToRaw = readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/flow/build" });
     const returnTo =
@@ -864,6 +911,10 @@ export async function parseJobPostingUrlAction(formData: FormData) {
       }),
     );
   }
+}
+
+export async function parseJobPostingUrlAction(formData: FormData) {
+  return summarizeTargetRoleAction(formData);
 }
 
 export async function saveAnalysisAction(formData: FormData) {
@@ -963,6 +1014,10 @@ export async function runAnalysisAction(formData: FormData) {
     const snapshot = await requireSnapshot();
     const resumeId = readStringField(formData, "resumeId", { required: true, max: 100 });
     const jobDescriptionId = readStringField(formData, "jobDescriptionId", { required: true, max: 100 });
+    const returnTo = safeInternalPath(
+      readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/analysis" }),
+      "/dashboard/analysis",
+    );
 
     if (!hasUsageRemaining(snapshot, "analysis")) {
       redirectForUsageLimit("analysis");
@@ -991,7 +1046,14 @@ export async function runAnalysisAction(formData: FormData) {
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/analysis");
-    redirect(`/dashboard/analysis?resumeId=${resumeId}&jobDescriptionId=${jobDescriptionId}&ran=1`);
+    if (returnTo.startsWith("/dashboard/analysis")) {
+      redirect(`/dashboard/analysis?resumeId=${resumeId}&jobDescriptionId=${jobDescriptionId}&ran=1`);
+    }
+    redirect(
+      buildReturnPath(returnTo, {
+        ran: "1",
+      }),
+    );
   } catch (error) {
     rethrowRedirect(error);
     console.error("runAnalysisAction failed");
@@ -1000,7 +1062,18 @@ export async function runAnalysisAction(formData: FormData) {
       error instanceof ValidationError || error instanceof RateLimitError
         ? error.message
         : "Unable to run analysis.";
-    redirect(`/dashboard/analysis?error=${encodeURIComponent(message)}`);
+    const returnTo = safeInternalPath(
+      readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/analysis" }),
+      "/dashboard/analysis",
+    );
+    if (returnTo.startsWith("/dashboard/analysis")) {
+      redirect(`/dashboard/analysis?error=${encodeURIComponent(message)}`);
+    }
+    redirect(
+      buildReturnPath(returnTo, {
+        error: message,
+      }),
+    );
   }
 }
 
@@ -1093,6 +1166,10 @@ export async function runTailoredDraftAction(formData: FormData) {
     const snapshot = await requireSnapshot();
     const resumeId = readStringField(formData, "resumeId", { required: true, max: 100 });
     const jobDescriptionId = readStringField(formData, "jobDescriptionId", { required: true, max: 100 });
+    const returnTo = safeInternalPath(
+      readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/tailoring" }),
+      "/dashboard/tailoring",
+    );
 
     requireFeatureAccess(snapshot, "tailored_resume");
     assertUsageCooldown(snapshot.usage, "tailored_draft");
@@ -1117,7 +1194,14 @@ export async function runTailoredDraftAction(formData: FormData) {
     });
 
     revalidatePath("/dashboard/tailoring");
-    redirect(`/dashboard/tailoring?resumeId=${resumeId}&jobDescriptionId=${jobDescriptionId}&draft=1`);
+    if (returnTo.startsWith("/dashboard/tailoring")) {
+      redirect(`/dashboard/tailoring?resumeId=${resumeId}&jobDescriptionId=${jobDescriptionId}&draft=1`);
+    }
+    redirect(
+      buildReturnPath(returnTo, {
+        draft: "1",
+      }),
+    );
   } catch (error) {
     rethrowRedirect(error);
     console.error("runTailoredDraftAction failed");
@@ -1126,7 +1210,18 @@ export async function runTailoredDraftAction(formData: FormData) {
       error instanceof ValidationError || error instanceof RateLimitError
         ? error.message
         : "Unable to generate tailored draft.";
-    redirect(`/dashboard/tailoring?error=${encodeURIComponent(message)}`);
+    const returnTo = safeInternalPath(
+      readStringField(formData, "returnTo", { max: 200, fallback: "/dashboard/tailoring" }),
+      "/dashboard/tailoring",
+    );
+    if (returnTo.startsWith("/dashboard/tailoring")) {
+      redirect(`/dashboard/tailoring?error=${encodeURIComponent(message)}`);
+    }
+    redirect(
+      buildReturnPath(returnTo, {
+        error: message,
+      }),
+    );
   }
 }
 

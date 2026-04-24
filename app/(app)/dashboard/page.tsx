@@ -129,29 +129,47 @@ export default async function DashboardPage() {
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
             {pickText(
               uiLanguage,
-              "For this release, the full guided experience is focused on the Build from scratch path. You can still open Improve existing resume as an upcoming path.",
-              "当前版本优先完善“从零创建”全流程。“优化现有简历”路径已保留为后续上线入口。",
+              "Choose the path that matches your situation. ResumeForge will parse, diagnose, rewrite, and guide you to an export-ready resume.",
+              "请选择更符合你当前状态的路径。ResumeForge 会负责解析、诊断、改写，并引导你完成可导出的简历。",
             )}
           </p>
 
+          {journey.signals.hasAnyProgress ? (
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-slate-500/45 bg-slate-900/78 px-3 py-1.5 text-xs text-slate-200">
+              <span>{pickText(uiLanguage, "Continue where you left off:", "继续上次进度：")}</span>
+              <Link
+                className="font-medium text-cyan-200 underline-offset-2 hover:underline"
+                href={journey.recommendedPath === "improve" ? journey.improve.nextHref : journey.build.nextHref}
+              >
+                {journey.recommendedPath === "improve"
+                  ? pickText(uiLanguage, "Improve path", "优化路径")
+                  : pickText(uiLanguage, "Build path", "创建路径")}
+              </Link>
+            </div>
+          ) : null}
+
           <div className="mt-7 grid gap-5 xl:grid-cols-2">
             <PathLauncherCard
-              cta={pickText(uiLanguage, "Open improve path", "进入优化路径")}
+              cta={
+                journey.improve.started
+                  ? pickText(uiLanguage, "Continue improving", "继续优化")
+                  : pickText(uiLanguage, "Start with my current resume", "从现有简历开始")
+              }
               description={pickText(
                 uiLanguage,
-                "Use this if you already have a baseline resume and want role-targeted improvements.",
-                "如果你已有基础简历并希望做岗位定向优化，请选择此路径。",
+                "Use this if you already have a baseline resume and want role-specific diagnosis and revision.",
+                "如果你已经有基础简历，并希望做岗位导向的诊断与修订，请选择此路径。",
               )}
-              highlighted={false}
-              href="/dashboard/flow/improve"
+              highlighted={journey.recommendedPath === "improve"}
+              href={journey.improve.nextHref}
               icon={FileUp}
               points={[
-                pickText(uiLanguage, "Upload baseline resume", "导入基础简历"),
-                pickText(uiLanguage, "Run fit analysis", "执行匹配分析"),
-                pickText(uiLanguage, "Tailor and export", "定向优化并导出"),
+                pickText(uiLanguage, "Import or paste existing resume", "导入或粘贴现有简历"),
+                pickText(uiLanguage, "Add target job and run diagnosis", "添加目标岗位并执行诊断"),
+                pickText(uiLanguage, "Fix issues, tailor, and export", "修复问题、定向优化并导出"),
               ]}
               progress={journey.improve}
-              started={false}
+              started={journey.improve.started}
               title={pickText(uiLanguage, "Improve an existing resume", "优化现有简历")}
               uiLanguage={uiLanguage}
             />

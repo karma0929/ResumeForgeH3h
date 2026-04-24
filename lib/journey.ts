@@ -106,15 +106,15 @@ export function getJourneyState(snapshot: AppSnapshot): JourneyState {
     (signals.hasAnalysis ? 1 : 0) +
     (signals.hasTailored ? 1 : 0);
   const improveTotal = 3;
-  const improveNextHref = !signals.hasTargetRole
-    ? "/dashboard/upload?step=1"
-    : !signals.hasResumeBaseline
-      ? "/dashboard/upload?step=2"
+  const improveNextHref = !signals.hasResumeBaseline
+    ? "/dashboard/flow/improve?step=1"
+    : !signals.hasTargetRole
+      ? "/dashboard/flow/improve?step=2"
       : !signals.hasAnalysis
-        ? analysisHref
+        ? "/dashboard/flow/improve?step=3"
         : !signals.hasTailored
-          ? tailoringHref
-          : "/dashboard/versions";
+          ? "/dashboard/flow/improve?step=5"
+          : "/dashboard/flow/improve?step=6";
 
   const buildCompleted =
     (signals.hasTargetRole ? 1 : 0) +
@@ -123,17 +123,28 @@ export function getJourneyState(snapshot: AppSnapshot): JourneyState {
     (signals.hasAnalysis ? 1 : 0) +
     (signals.hasTailored ? 1 : 0);
   const buildTotal = 5;
-  const buildNextHref = !signals.hasTargetRole
-    ? "/dashboard/upload?step=1"
-    : !signals.hasCoreProfile
-      ? "/dashboard/upload?step=3"
+  const buildNextHref = !signals.hasCoreProfile
+    ? "/dashboard/flow/build?step=1"
+    : !signals.hasTargetRole
+      ? "/dashboard/flow/build?step=7"
       : !signals.hasEnhancements
-        ? "/dashboard/upload?step=4"
+        ? "/dashboard/flow/build?step=6"
         : !signals.hasAnalysis
           ? analysisHref
           : !signals.hasTailored
             ? tailoringHref
-            : "/dashboard/versions";
+            : "/dashboard/flow/build?step=10";
+
+  const improveStarted =
+    signals.hasResumeBaseline || signals.hasTargetRole || signals.hasAnalysis || signals.hasTailored;
+  const buildStarted =
+    signals.hasCoreProfile ||
+    signals.hasEnhancements ||
+    signals.hasTargetRole ||
+    signals.hasAnalysis ||
+    signals.hasTailored;
+
+  const recommendedPath = improveStarted ? "improve" : "build";
 
   return {
     signals,
@@ -142,23 +153,17 @@ export function getJourneyState(snapshot: AppSnapshot): JourneyState {
       total: improveTotal,
       percent: toPercent(improveCompleted, improveTotal),
       nextHref: improveNextHref,
-      started:
-        signals.hasTargetRole || signals.hasResumeBaseline || signals.hasAnalysis || signals.hasTailored,
+      started: improveStarted,
     },
     build: {
       completed: buildCompleted,
       total: buildTotal,
       percent: toPercent(buildCompleted, buildTotal),
       nextHref: buildNextHref,
-      started:
-        signals.hasTargetRole ||
-        signals.hasCoreProfile ||
-        signals.hasEnhancements ||
-        signals.hasAnalysis ||
-        signals.hasTailored,
+      started: buildStarted,
     },
     analysisHref,
     tailoringHref,
-    recommendedPath: signals.hasResumeBaseline ? "improve" : "build",
+    recommendedPath,
   };
 }

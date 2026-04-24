@@ -214,6 +214,58 @@ function cleanHtmlToText(html: string) {
   return normalized.join("\n").slice(0, 18000);
 }
 
+function mergeExtractedWithFallback(input: {
+  extracted: ExtractedJobPostingOutput;
+  sourceUrl: string;
+  readableText: string;
+  fallbackCompany?: string;
+  fallbackRole?: string;
+  fallbackLocation?: string;
+  fallbackDescription?: string;
+}) {
+  const inferred = inferBriefFallback(input.readableText);
+  const { extracted } = input;
+
+  return {
+    ...extracted,
+    company: extracted.company || input.fallbackCompany || "",
+    role: extracted.role || input.fallbackRole || "",
+    location: extracted.location || input.fallbackLocation || "",
+    sourceUrl: input.sourceUrl,
+    cleanedJobDescription:
+      extracted.cleanedJobDescription && extracted.cleanedJobDescription.length >= 120
+        ? extracted.cleanedJobDescription
+        : (input.fallbackDescription || input.readableText).slice(0, 12000),
+    briefData: {
+      ...extracted.briefData,
+      sourceUrl: input.sourceUrl,
+      seniorityLevel: extracted.briefData.seniorityLevel || inferred.seniorityLevel || "",
+      employmentType: extracted.briefData.employmentType || inferred.employmentType || "",
+      workMode: extracted.briefData.workMode || inferred.workMode || "",
+      topRequiredSkills:
+        extracted.briefData.topRequiredSkills.length > 0
+          ? extracted.briefData.topRequiredSkills
+          : inferred.topRequiredSkills ?? [],
+      preferredSkills:
+        extracted.briefData.preferredSkills.length > 0
+          ? extracted.briefData.preferredSkills
+          : inferred.preferredSkills ?? [],
+      emphasizeKeywords:
+        extracted.briefData.emphasizeKeywords.length > 0
+          ? extracted.briefData.emphasizeKeywords
+          : inferred.emphasizeKeywords ?? [],
+      responsibilitiesSummary:
+        extracted.briefData.responsibilitiesSummary ||
+        inferred.responsibilitiesSummary ||
+        "",
+      hiringPriorities:
+        extracted.briefData.hiringPriorities.length > 0
+          ? extracted.briefData.hiringPriorities
+          : inferred.hiringPriorities ?? [],
+    },
+  };
+}
+
 async function fetchPostingHtml(url: string) {
   const response = await fetch(url, {
     method: "GET",
@@ -289,44 +341,42 @@ export async function parseJobPostingFromUrl(input: {
     sourceUrl,
     jobPostingText: enrichedText,
   });
-  const inferred = inferBriefFallback(readableText);
 
-  return {
-    ...extracted,
-    company: extracted.company || jsonLd?.company || "",
-    role: extracted.role || jsonLd?.title || "",
-    location: extracted.location || jsonLd?.location || "",
+  return mergeExtractedWithFallback({
+    extracted,
     sourceUrl,
-    cleanedJobDescription:
-      extracted.cleanedJobDescription && extracted.cleanedJobDescription.length >= 120
-        ? extracted.cleanedJobDescription
-        : (jsonLd?.description || readableText).slice(0, 12000),
-    briefData: {
-      ...extracted.briefData,
-      sourceUrl,
-      seniorityLevel: extracted.briefData.seniorityLevel || inferred.seniorityLevel || "",
-      employmentType: extracted.briefData.employmentType || inferred.employmentType || "",
-      workMode: extracted.briefData.workMode || inferred.workMode || "",
-      topRequiredSkills:
-        extracted.briefData.topRequiredSkills.length > 0
-          ? extracted.briefData.topRequiredSkills
-          : inferred.topRequiredSkills ?? [],
-      preferredSkills:
-        extracted.briefData.preferredSkills.length > 0
-          ? extracted.briefData.preferredSkills
-          : inferred.preferredSkills ?? [],
-      emphasizeKeywords:
-        extracted.briefData.emphasizeKeywords.length > 0
-          ? extracted.briefData.emphasizeKeywords
-          : inferred.emphasizeKeywords ?? [],
-      responsibilitiesSummary:
-        extracted.briefData.responsibilitiesSummary ||
-        inferred.responsibilitiesSummary ||
-        "",
-      hiringPriorities:
-        extracted.briefData.hiringPriorities.length > 0
-          ? extracted.briefData.hiringPriorities
-          : inferred.hiringPriorities ?? [],
-    },
-  };
+    readableText,
+    fallbackCompany: jsonLd?.company,
+    fallbackRole: jsonLd?.title,
+    fallbackLocation: jsonLd?.location,
+    fallbackDescription: jsonLd?.description,
+  });
+}
+
+export async function summarizeJobPostingText(input: {
+  jobPostingText: string;
+  sourceUrl?: string;
+}): Promise<ExtractedJobPostingOutput> {
+  const readableText = input.jobPostingText.trim();
+  if (readableText.length < 120) {
+    throw new ValidationError("Job description text must be at least 120 characters.");
+  }
+
+  const sourceUrl = input.sourceUrl?.trim() ? ensurePublicUrl(input.sourceUrl.trim()) : "";
+  const ai = getAIService({ preferLive: true });
+  const extracted = await ai.extractJobPosting({
+    sourceUrl: sourceUrl || "manual_text_input",
+    jobPostingText: readableText.slice(0, 18000),
+  });
+
+  logEvent("info", "Summarizing pasted job description text", {
+    sourceUrl,
+    textLength: readableText.length,
+  });
+
+  return mergeExtractedWithFallback({
+    extracted,
+    sourceUrl,
+    readableText,
+  });
 }

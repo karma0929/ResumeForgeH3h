@@ -29,7 +29,7 @@ import { getSessionIdentity } from "@/lib/auth";
 import { getAppSnapshot } from "@/lib/data";
 import {
   generateBuildDraftAction,
-  parseJobPostingUrlAction,
+  summarizeTargetRoleAction,
   saveJobDescriptionAction,
   saveResumeAction,
 } from "@/lib/actions/dashboard";
@@ -336,10 +336,10 @@ export default async function BuildFlowPage({
         }
       : parsedFromUrl
         ? {
-            title: t("Job posting parsed", "岗位链接解析完成"),
+            title: t("Target role summarized", "目标岗位已总结"),
             description: t(
-              "Extracted fields are filled below. Review and edit before saving.",
-              "已自动填充解析结果，请在下方复核并按需修改后保存。",
+              "Structured fields are ready below. Review and edit before saving.",
+              "已生成结构化岗位简报，请在下方复核并按需修改后保存。",
             ),
             tone: "success" as const,
           }
@@ -825,6 +825,7 @@ export default async function BuildFlowPage({
                       defaultValue={item?.dates ?? ""}
                       endLabel={t("End month", "结束月份")}
                       name={`exp${index}_dates`}
+                      presentLabel={t("Present", "至今")}
                       startLabel={t("Start month", "开始月份")}
                     />
                   </div>
@@ -955,6 +956,7 @@ export default async function BuildFlowPage({
                       defaultValue={item?.dates ?? ""}
                       endLabel={t("End month (optional)", "结束月份（可选）")}
                       name={`project${index}_dates`}
+                      presentLabel={t("Present", "至今")}
                       startLabel={t("Start month", "开始月份")}
                     />
                     <input
@@ -1217,97 +1219,131 @@ export default async function BuildFlowPage({
 
       {step === 7 ? (
         <Card className={stepCardClass}>
-          <div className="rounded-2xl border border-slate-600/45 bg-slate-900/70 p-4">
+          <div className="rounded-2xl border border-slate-600/45 bg-slate-900/72 p-4">
             <p className="text-sm font-medium text-slate-100">
-              {t("Parse from public job URL", "从公开岗位链接自动解析")}
+              {t("Create target role brief with AI", "用 AI 生成目标岗位简报")}
             </p>
             <p className="mt-1 text-xs text-slate-300">
               {t(
-                "Paste a public job posting URL. ResumeForge will fetch the page, extract structured fields with AI, then you can edit everything below.",
-                "粘贴公开岗位链接。ResumeForge 会抓取页面并用 AI 提取结构化字段，你可在下方继续编辑。",
+                "Use either a public job URL or pasted job text. ResumeForge will summarize and structure the role for you, then you only review/edit.",
+                "你只需要提供岗位链接或粘贴岗位文本。ResumeForge 会自动总结并结构化，你只需复核和微调。",
               )}
             </p>
-            <form action={parseJobPostingUrlAction} className="mt-3 flex flex-col gap-3 sm:flex-row">
+            <form action={summarizeTargetRoleAction} className="mt-3 space-y-3">
               <input name="currentStep" type="hidden" value="7" />
               <input name="jobDescriptionId" type="hidden" value={jobDescription?.id ?? ""} />
               <input name="returnTo" type="hidden" value="/dashboard/flow/build" />
-              <input
-                className="h-11 flex-1 rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 text-sm text-slate-100 placeholder:text-slate-500"
-                defaultValue={jobDescription?.briefData?.sourceUrl ?? ""}
-                name="jobPostingUrl"
-                placeholder={t("https://company.com/careers/job-posting", "https://company.com/careers/job-posting")}
-                type="url"
-              />
-              <SubmitButton pendingLabel={t("Parsing...", "解析中...")}>
-                {t("Parse job posting", "解析岗位链接")}
-              </SubmitButton>
+
+              <label className="block">
+                <span className={sectionSubTitleClass}>
+                  {t("Public job URL (optional)", "公开岗位链接（可选）")}
+                </span>
+                <input
+                  className={fieldClass}
+                  defaultValue={jobDescription?.briefData?.sourceUrl ?? ""}
+                  name="jobPostingUrl"
+                  placeholder={t("https://company.com/careers/software-engineer", "https://company.com/careers/software-engineer")}
+                  type="url"
+                />
+              </label>
+
+              <div className="relative py-1 text-center text-xs text-slate-400">
+                <span className="absolute left-0 right-0 top-1/2 h-px bg-slate-700/70" />
+                <span className="relative bg-slate-900/72 px-3">
+                  {t("or paste job description text", "或粘贴岗位描述文本")}
+                </span>
+              </div>
+
+              <label className="block">
+                <span className={sectionSubTitleClass}>
+                  {t("Job description text", "岗位描述文本")}
+                </span>
+                <textarea
+                  className="min-h-[200px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
+                  defaultValue={jobDescription?.description ?? ""}
+                  name="jobDescriptionText"
+                  placeholder={t(
+                    "Paste the full role description here if URL is blocked or unavailable.",
+                    "若链接无法访问或无公开链接，请将完整岗位描述粘贴在这里。",
+                  )}
+                />
+              </label>
+
+              <div className="flex flex-wrap gap-3">
+                <SubmitButton pendingLabel={t("Summarizing...", "总结中...")}>
+                  {t("Summarize with AI", "AI 生成岗位简报")}
+                </SubmitButton>
+                <p className="self-center text-xs text-slate-400">
+                  {t(
+                    "If URL parsing fails, pasted text will be used automatically.",
+                    "若链接解析失败，系统会自动回退到粘贴文本进行总结。",
+                  )}
+                </p>
+              </div>
             </form>
-            <p className="mt-2 text-xs text-slate-400">
-              {t(
-                "If parsing fails due to anti-bot pages, paste job description text manually below.",
-                "若因反爬策略无法解析，请直接在下方粘贴岗位描述文本。",
-              )}
-            </p>
           </div>
 
-          <p className="text-sm text-slate-300">
-            {t(
-              "Add role context manually or refine the parsed results. More detail improves tailoring quality.",
-              "可手动补充岗位信息，或基于解析结果继续完善。信息越完整，后续定向优化越准确。",
-            )}
-          </p>
           <form action={saveJobDescriptionAction} className="space-y-4">
             <input name="currentStep" type="hidden" value="7" />
             <input name="jobDescriptionId" type="hidden" value={jobDescription?.id ?? ""} />
             <input name="returnTo" type="hidden" value="/dashboard/flow/build" />
             <input name="sourceUrl" type="hidden" value={jobDescription?.briefData?.sourceUrl ?? ""} />
 
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-slate-100">
+                  {t("Review AI-structured brief", "复核 AI 结构化岗位简报")}
+                </p>
+                <p className="mt-1 text-xs text-slate-300">
+                  {t(
+                    "Only fix what is inaccurate. Keep this lightweight.",
+                    "只修正不准确的信息，尽量保持轻量。",
+                  )}
+                </p>
+              </div>
+              <Badge className="border-cyan-400/45 bg-cyan-950/40 text-cyan-100">
+                {t("Editable", "可编辑")}
+              </Badge>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="block md:col-span-2">
-                  <span className={sectionSubTitleClass}>
-                    {t("Source job URL (optional)", "岗位来源链接（可选）")}
-                  </span>
-                  <input
-                    className={fieldClass}
-                    defaultValue={jobDescription?.briefData?.sourceUrl ?? ""}
-                    name="sourceUrl"
-                  placeholder={t("Paste the posting URL for traceability", "保留岗位链接便于追踪来源")}
-                  type="url"
+              <label className="block">
+                <span className={sectionSubTitleClass}>
+                  {t("Target company (optional)", "目标公司（可选）")}
+                </span>
+                <input
+                  className={fieldClass}
+                  defaultValue={jobDescription?.company ?? ""}
+                  name="company"
+                  type="text"
                 />
               </label>
               <label className="block">
-                  <span className={sectionSubTitleClass}>
-                    {t("Target company (optional)", "目标公司（可选）")}
-                  </span>
-                  <input
-                    className={fieldClass}
-                    defaultValue={jobDescription?.company ?? ""}
-                    name="company"
-                    type="text"
-                  />
-                </label>
-                <label className="block">
-                  <span className={sectionSubTitleClass}>
-                    {t("Target role", "目标岗位")}
-                  </span>
-                  <input
-                    className={fieldClass}
-                    defaultValue={jobDescription?.role ?? ""}
-                    name="role"
-                    placeholder={t("e.g. Software Engineer", "例如：后端工程师")}
-                    type="text"
-                  />
-                </label>
-                <LocationField
-                  defaultValue={jobDescription?.location ?? ""}
-                  label={t("Target location (optional)", "目标地点（可选）")}
-                  name="location"
-                  uiLanguage={uiLanguage}
+                <span className={sectionSubTitleClass}>
+                  {t("Target role", "目标岗位")}
+                </span>
+                <input
+                  className={fieldClass}
+                  defaultValue={jobDescription?.role ?? ""}
+                  name="role"
+                  placeholder={t("e.g. Software Engineer", "例如：后端工程师")}
+                  type="text"
                 />
+              </label>
+              <LocationField
+                defaultValue={jobDescription?.location ?? ""}
+                helperText={t(
+                  "If the posting only mentions country/remote, city can stay empty.",
+                  "若岗位仅写国家/远程，城市可留空。",
+                )}
+                label={t("Target location (optional)", "目标地点（可选）")}
+                name="location"
+                uiLanguage={uiLanguage}
+              />
               <div className="space-y-2">
-              <span className="block text-sm font-medium text-slate-200">
-                {t("Employment type (optional)", "雇佣类型（可选）")}
-              </span>
+                <span className="block text-sm font-medium text-slate-200">
+                  {t("Employment type (optional)", "雇佣类型（可选）")}
+                </span>
                 <SegmentedOptionGroup
                   className="md:grid-cols-4"
                   defaultValue={jobDescription?.briefData?.employmentType ?? ""}
@@ -1324,53 +1360,60 @@ export default async function BuildFlowPage({
                   ]}
                 />
               </div>
+              <div className="space-y-2">
+                <span className="block text-sm font-medium text-slate-200">
+                  {t("Seniority level (optional)", "级别要求（可选）")}
+                </span>
+                <SegmentedOptionGroup
+                  className="md:grid-cols-4"
+                  defaultValue={jobDescription?.briefData?.seniorityLevel ?? ""}
+                  name="seniorityLevel"
+                  options={[
+                    { value: "", label: t("Not specified", "未指定") },
+                    { value: "Entry", label: t("Entry", "初级") },
+                    { value: "Mid", label: t("Mid", "中级") },
+                    { value: "Senior", label: t("Senior", "高级") },
+                  ]}
+                />
+              </div>
+              <div className="space-y-2">
+                <span className="block text-sm font-medium text-slate-200">
+                  {t("Work mode (optional)", "办公模式（可选）")}
+                </span>
+                <SegmentedOptionGroup
+                  defaultValue={jobDescription?.briefData?.workMode ?? ""}
+                  name="workMode"
+                  options={[
+                    { value: "", label: t("Not specified", "未指定") },
+                    { value: "Onsite", label: t("Onsite", "现场") },
+                    { value: "Hybrid", label: t("Hybrid", "混合") },
+                    { value: "Remote", label: t("Remote", "远程") },
+                  ]}
+                />
+              </div>
             </div>
             <textarea
               className="min-h-[180px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
               defaultValue={jobDescription?.description ?? ""}
               name="description"
               placeholder={t(
-                "Full job description text (optional but recommended)",
-                "完整岗位描述文本（可选但强烈推荐）",
+                "Cleaned job description text used for generation/analysis.",
+                "用于生成与分析的岗位文本（已清洗）。",
               )}
             />
-            <div className="space-y-2">
-              <span className="block text-sm font-medium text-slate-200">
-                {t("Seniority level (optional)", "级别要求（可选）")}
-              </span>
-              <SegmentedOptionGroup
-                className="md:grid-cols-4"
-                defaultValue={jobDescription?.briefData?.seniorityLevel ?? ""}
-                name="seniorityLevel"
-                options={[
-                  { value: "", label: t("Not specified", "未指定") },
-                  { value: "Entry", label: t("Entry", "初级") },
-                  { value: "Mid", label: t("Mid", "中级") },
-                  { value: "Senior", label: t("Senior", "高级") },
-                ]}
-              />
-            </div>
-            <div className="space-y-2">
-              <span className="block text-sm font-medium text-slate-200">
-                {t("Work mode (optional)", "办公模式（可选）")}
-              </span>
-              <SegmentedOptionGroup
-                defaultValue={jobDescription?.briefData?.workMode ?? ""}
-                name="workMode"
-                options={[
-                  { value: "", label: t("Not specified", "未指定") },
-                  { value: "Onsite", label: t("Onsite", "现场") },
-                  { value: "Hybrid", label: t("Hybrid", "混合") },
-                  { value: "Remote", label: t("Remote", "远程") },
-                ]}
-              />
-            </div>
             <TokenInputField
               defaultValue={jobDescription?.briefData?.topRequiredSkills.join(", ") ?? ""}
               helperText={t("Use concise skill tags.", "建议使用简洁技能标签。")}
               label={t("Key required skills (optional)", "关键必备技能（可选）")}
               name="topRequiredSkills"
               placeholder={t("Node.js, SQL, API design", "Node.js、SQL、API 设计")}
+            />
+            <TokenInputField
+              defaultValue={jobDescription?.briefData?.preferredSkills.join(", ") ?? ""}
+              helperText={t("Optional plus-skills used for tailoring nuance.", "可选加分技能，用于更细粒度匹配。")}
+              label={t("Preferred skills (optional)", "偏好技能（可选）")}
+              name="preferredSkills"
+              placeholder={t("Distributed tracing, ML Ops", "分布式追踪、MLOps")}
             />
             <TokenInputField
               defaultValue={jobDescription?.briefData?.emphasizeKeywords.join(", ") ?? ""}
@@ -1383,8 +1426,52 @@ export default async function BuildFlowPage({
               className="min-h-[80px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
               defaultValue={jobDescription?.briefData?.responsibilitiesSummary ?? ""}
               name="responsibilitiesSummary"
-              placeholder={t("Hiring priorities / role emphasis (optional)", "招聘重点 / 岗位侧重点（可选）")}
+              placeholder={t("Concise hiring focus summary (editable)", "岗位重点摘要（可编辑）")}
             />
+
+            <details className="rounded-2xl border border-slate-600/45 bg-slate-900/72 p-4">
+              <summary className="cursor-pointer text-sm font-medium text-slate-100">
+                {t("Advanced role signals (optional)", "高级岗位信号（可选）")}
+              </summary>
+              <div className="mt-3 space-y-3">
+                <input
+                  className={fieldClass}
+                  defaultValue={jobDescription?.briefData?.industryDomain ?? ""}
+                  name="industryDomain"
+                  placeholder={t("Industry/domain (optional)", "行业领域（可选）")}
+                  type="text"
+                />
+                <input
+                  className={fieldClass}
+                  defaultValue={jobDescription?.briefData?.salaryRange ?? ""}
+                  name="salaryRange"
+                  placeholder={t("Salary range (optional)", "薪资范围（可选）")}
+                  type="text"
+                />
+                <div className="grid gap-3 md:grid-cols-2">
+                  <input
+                    className={fieldClass}
+                    defaultValue={jobDescription?.briefData?.atsIntensity ?? ""}
+                    name="atsIntensity"
+                    placeholder={t("ATS intensity (optional)", "ATS 强度（可选）")}
+                    type="text"
+                  />
+                  <input
+                    className={fieldClass}
+                    defaultValue={jobDescription?.briefData?.technicalIntensity ?? ""}
+                    name="technicalIntensity"
+                    placeholder={t("Technical intensity (optional)", "技术强度（可选）")}
+                    type="text"
+                  />
+                </div>
+                <textarea
+                  className="min-h-[100px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
+                  defaultValue={jobDescription?.briefData?.recruiterNotes ?? ""}
+                  name="recruiterNotes"
+                  placeholder={t("Recruiter / hiring manager notes (optional)", "招聘方备注（可选）")}
+                />
+              </div>
+            </details>
 
             <div className="flex flex-wrap gap-3">
               <Link

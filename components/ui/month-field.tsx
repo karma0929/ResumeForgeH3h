@@ -14,10 +14,12 @@ export function MonthField({
   name,
   defaultValue,
   label,
+  className,
 }: {
   name: string;
   defaultValue?: string;
   label: string;
+  className?: string;
 }) {
   const normalizedDefault = useMemo(() => normalizeMonth(defaultValue ?? ""), [defaultValue]);
   const [month, setMonth] = useState(normalizedDefault);
@@ -25,11 +27,11 @@ export function MonthField({
   const hiddenValue = month || (!edited ? defaultValue || "" : "");
 
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-slate-600">{label}</span>
+    <label className={className ?? "block"}>
+      <span className="mb-1 block text-xs font-medium text-slate-300">{label}</span>
       <input name={name} type="hidden" value={hiddenValue} />
       <input
-        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+        className="h-11 w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-3 text-sm text-slate-100"
         onChange={(event) => {
           setEdited(true);
           setMonth(event.target.value);
