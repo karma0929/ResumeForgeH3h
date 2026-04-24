@@ -321,7 +321,10 @@ export async function saveResumeAction(formData: FormData) {
       formData.has(`project${index}_dates`) ||
       formData.has(`project${index}_technologies`) ||
       formData.has(`project${index}_description`) ||
-      formData.has(`project${index}_impact`),
+      formData.has(`project${index}_impact`) ||
+      formData.has(`project${index}_projectUrl`) ||
+      formData.has(`project${index}_githubUrl`) ||
+      formData.has(`project${index}_demoUrl`),
     );
 
     const structuredProjects = hasStructuredProjectFields
@@ -343,6 +346,9 @@ export async function saveResumeAction(formData: FormData) {
               "",
             );
             const impact = readValueWithFallback(formData, `project${index}_impact`, { max: 400 }, "");
+            const projectUrl = readValueWithFallback(formData, `project${index}_projectUrl`, { max: 320 }, "");
+            const githubUrl = readValueWithFallback(formData, `project${index}_githubUrl`, { max: 320 }, "");
+            const demoUrl = readValueWithFallback(formData, `project${index}_demoUrl`, { max: 320 }, "");
 
             if (!name && !description) {
               return "";
@@ -357,6 +363,9 @@ export async function saveResumeAction(formData: FormData) {
               technologies ? `Technologies: ${technologies}` : "",
               description,
               impact ? `Impact: ${impact}` : "",
+              projectUrl ? `Project link: ${projectUrl}` : "",
+              githubUrl ? `GitHub: ${githubUrl}` : "",
+              demoUrl ? `Demo: ${demoUrl}` : "",
             ]).join(" — ");
 
             return compactLines([headline, body]).join(" — ");

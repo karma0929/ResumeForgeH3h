@@ -9,6 +9,8 @@ import {
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { ResumePreview } from "@/components/resume/resume-preview";
 import { TemplateGalleryField } from "@/components/resume/template-gallery-field";
+import { FieldHelp } from "@/components/ui/field-help";
+import { LocationField } from "@/components/ui/location-field";
 import { MonthField } from "@/components/ui/month-field";
 import { MonthRangeField } from "@/components/ui/month-range-field";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +18,10 @@ import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Reveal } from "@/components/ui/reveal";
 import { SegmentedOptionGroup } from "@/components/ui/segmented-option-group";
+import {
+  SkillsLibraryField,
+  type SkillsLibraryGroup,
+} from "@/components/ui/skills-library-field";
 import { StatusBanner } from "@/components/ui/status-banner";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { TokenInputField } from "@/components/ui/token-input-field";
@@ -45,6 +51,14 @@ function parseStep(value: string | undefined, fallback: number) {
   return parsed;
 }
 
+function parseEntryCount(value: string | undefined, fallback: number) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (Number.isNaN(parsed)) {
+    return fallback;
+  }
+  return Math.max(1, Math.min(3, parsed));
+}
+
 function parseEducationLine(value: string) {
   const [headline, detailBlock = ""] = value.split(" — ");
   const headlineParts = headline.split("|").map((part) => part.trim()).filter(Boolean);
@@ -71,6 +85,15 @@ function parseProjectLine(value: string) {
   const [headline, body = ""] = value.split(" — ");
   const headlineParts = headline.split("|").map((part) => part.trim()).filter(Boolean);
   const bodyParts = body.split(" — ").map((part) => part.trim()).filter(Boolean);
+  const projectUrl = (bodyParts.find((part) => part.startsWith("Project link:")) ?? "")
+    .replace("Project link:", "")
+    .trim();
+  const githubUrl = (bodyParts.find((part) => part.startsWith("GitHub:")) ?? "")
+    .replace("GitHub:", "")
+    .trim();
+  const demoUrl = (bodyParts.find((part) => part.startsWith("Demo:")) ?? "")
+    .replace("Demo:", "")
+    .trim();
 
   return {
     name: headlineParts[0] ?? "",
@@ -79,8 +102,19 @@ function parseProjectLine(value: string) {
     technologies: (bodyParts.find((part) => part.startsWith("Technologies:")) ?? "")
       .replace("Technologies:", "")
       .trim(),
-    description: bodyParts.find((part) => !part.startsWith("Technologies:") && !part.startsWith("Impact:")) ?? "",
+    description:
+      bodyParts.find(
+        (part) =>
+          !part.startsWith("Technologies:") &&
+          !part.startsWith("Impact:") &&
+          !part.startsWith("Project link:") &&
+          !part.startsWith("GitHub:") &&
+          !part.startsWith("Demo:"),
+      ) ?? "",
     impact: (bodyParts.find((part) => part.startsWith("Impact:")) ?? "").replace("Impact:", "").trim(),
+    projectUrl,
+    githubUrl,
+    demoUrl,
   };
 }
 
@@ -122,8 +156,8 @@ const stepBlueprints = [
   },
   {
     number: 8,
-    title: { en: "Style preferences", zh: "风格偏好" },
-    description: { en: "Choose tone and emphasis for generated output.", zh: "设置输出语气与强调方向。" },
+    title: { en: "Style and output", zh: "风格与输出" },
+    description: { en: "Pick a simple style and output format before generation.", zh: "在生成前选择简洁风格与输出格式。" },
   },
   {
     number: 9,
@@ -155,16 +189,6 @@ const degreeLabelZh: Record<(typeof degreeOptions)[number], string> = {
   Other: "其他",
 };
 
-const resumeStyleOptions = [
-  { value: "", en: "Not specified", zh: "未指定" },
-  { value: "neutral", en: "Neutral", zh: "中性" },
-  { value: "technical", en: "Technical", zh: "技术导向" },
-  { value: "achievement_focused", en: "Achievement-focused", zh: "成果导向" },
-  { value: "leadership_focused", en: "Leadership-focused", zh: "领导力导向" },
-  { value: "executive", en: "Executive", zh: "高管风格" },
-  { value: "student_friendly", en: "Student-friendly", zh: "学生友好" },
-];
-
 const summaryStyleOptions = [
   { value: "", en: "Not specified", zh: "未指定" },
   { value: "concise", en: "Concise", zh: "简洁" },
@@ -172,6 +196,29 @@ const summaryStyleOptions = [
   { value: "impact_first", en: "Impact-first", zh: "成果优先" },
   { value: "technical", en: "Technical", zh: "技术型" },
   { value: "recruiter_friendly", en: "Recruiter-friendly", zh: "招聘友好" },
+];
+
+const skillLibraryGroups: SkillsLibraryGroup[] = [
+  {
+    id: "languages",
+    label: { en: "Languages", zh: "语言" },
+    items: ["Python", "JavaScript", "TypeScript", "Java", "Go", "C++", "SQL", "R", "MATLAB", "Swift"],
+  },
+  {
+    id: "frameworks",
+    label: { en: "Frameworks", zh: "框架" },
+    items: ["React", "Next.js", "Node.js", "Express", "Django", "Flask", "Spring Boot", "Vue", "Angular", "FastAPI"],
+  },
+  {
+    id: "tools",
+    label: { en: "Tools", zh: "工具" },
+    items: ["AWS", "Docker", "Kubernetes", "GitHub Actions", "Terraform", "PostgreSQL", "Redis", "Figma", "Jira", "Linux"],
+  },
+  {
+    id: "soft",
+    label: { en: "Soft skills", zh: "软技能" },
+    items: ["Communication", "Cross-functional collaboration", "Stakeholder management", "Problem solving", "Ownership", "Mentoring"],
+  },
 ];
 
 export default async function BuildFlowPage({
@@ -318,9 +365,40 @@ export default async function BuildFlowPage({
 
   const parsedEducation = (profile?.education ?? []).slice(0, 3).map(parseEducationLine);
   const parsedProjects = (profile?.projects ?? []).slice(0, 3).map(parseProjectLine);
+  const educationCount = parseEntryCount(
+    queryValue(params, "eduCount"),
+    Math.max(1, Math.min(3, parsedEducation.length || 1)),
+  );
+  const experienceCount = parseEntryCount(
+    queryValue(params, "expCount"),
+    Math.max(1, Math.min(3, profile?.workExperiences.length || 1)),
+  );
+  const projectCount = parseEntryCount(
+    queryValue(params, "projectCount"),
+    Math.max(1, Math.min(3, parsedProjects.length || 1)),
+  );
   const outputLanguage = profile?.preferences.outputLanguage || "en";
   const templateId = profile?.preferences.templateId || "classic_ats";
+  const buildStepHref = (
+    targetStep: number,
+    extra?: Record<string, string | number | undefined>,
+  ) => {
+    const search = new URLSearchParams({ step: String(targetStep) });
+    if (extra) {
+      for (const [key, value] of Object.entries(extra)) {
+        if (value !== undefined && value !== null && `${value}`.length > 0) {
+          search.set(key, String(value));
+        }
+      }
+    }
+    return `/dashboard/flow/build?${search.toString()}`;
+  };
   const stepCardClass = "space-y-5 border-slate-600/45 bg-slate-900/72 p-6 shadow-[0_26px_60px_-45px_rgba(15,23,42,0.78)] backdrop-blur-sm";
+  const fieldClass =
+    "w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500";
+  const fieldMutedClass =
+    "w-full rounded-2xl border border-slate-700/65 bg-slate-900/72 px-4 py-3 text-sm text-slate-400";
+  const sectionSubTitleClass = "mb-2 flex items-center gap-2 text-sm font-medium text-slate-200";
   const previewModel =
     originalVersion && resume?.profileData
       ? buildResumeRenderModel({
@@ -452,10 +530,10 @@ export default async function BuildFlowPage({
 
       {step === 1 ? (
         <Card className={stepCardClass}>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-300">
             {t(
-              "Start with your identity details. You can leave optional fields blank and return later.",
-              "先填写基础身份信息。可选字段可暂时留空，后续再补充。",
+              "Tell us the essentials. ResumeForge will infer structure and help polish wording later.",
+              "先告诉系统核心信息，后续由 ResumeForge 帮你推断结构并优化表达。",
             )}
           </p>
           <form action={saveResumeAction} className="space-y-4">
@@ -466,20 +544,20 @@ export default async function BuildFlowPage({
             <input name="title" type="hidden" value={resume?.title ?? "Build From Scratch Draft"} />
 
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">{t("Full name", "姓名")}</span>
+              <span className={sectionSubTitleClass}>{t("Full name", "姓名")}</span>
               <input
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                className={fieldClass}
                 defaultValue={profile?.basicProfile.fullName ?? snapshot.user.name}
                 name="fullName"
                 type="text"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">
+              <span className={sectionSubTitleClass}>
                 {t("Email (from account)", "邮箱（来自账号）")}
               </span>
               <input
-                className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-600"
+                className={fieldMutedClass}
                 defaultValue={snapshot.user.email}
                 disabled
                 type="text"
@@ -487,38 +565,43 @@ export default async function BuildFlowPage({
             </label>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">{t("Current title", "当前职位")}</span>
+                <span className={sectionSubTitleClass}>{t("Current title", "当前职位")}</span>
                 <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                  className={fieldClass}
                   defaultValue={profile?.basicProfile.currentTitle ?? snapshot.user.headline}
                   name="currentTitle"
+                  placeholder={t("e.g. Software Engineer Intern", "例如：后端工程师 / 数据分析师")}
                   type="text"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">{t("Desired title", "目标职位")}</span>
+                <span className={sectionSubTitleClass}>{t("Desired title", "目标职位")}</span>
                 <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                  className={fieldClass}
                   defaultValue={profile?.basicProfile.targetTitle ?? snapshot.user.targetRole}
                   name="targetTitle"
+                  placeholder={t("Role you want next", "你希望投递的岗位")}
                   type="text"
                 />
               </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">{t("Location", "地点")}</span>
-                <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              <div className="md:col-span-2">
+                <LocationField
                   defaultValue={profile?.basicProfile.location ?? snapshot.user.location}
+                  helperText={t(
+                    "Choose country, then region/state, then city. If unavailable, type directly.",
+                    "先选国家，再选州/省，最后填写城市。没有选项时可直接输入。",
+                  )}
+                  label={t("Location", "地点")}
                   name="profileLocation"
-                  type="text"
+                  uiLanguage={uiLanguage}
                 />
-              </label>
+              </div>
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">
+                <span className={sectionSubTitleClass}>
                   {t("Work authorization (optional)", "工作签证状态（可选）")}
                 </span>
                 <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                  className={fieldClass}
                   defaultValue={profile?.basicProfile.workAuthorization ?? ""}
                   name="workAuthorization"
                   placeholder={t("e.g. F-1 OPT, H-1B sponsorship required", "例如：F-1 OPT，需要 H-1B sponsor")}
@@ -526,28 +609,30 @@ export default async function BuildFlowPage({
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">
+                <span className={sectionSubTitleClass}>
                   {t("Years of experience (optional)", "工作年限（可选）")}
                 </span>
                 <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                  className={fieldClass}
                   defaultValue={profile?.basicProfile.yearsExperience ?? ""}
                   name="yearsExperience"
+                  placeholder={t("e.g. 2 years", "例如：2 年")}
                   type="text"
                 />
               </label>
               <div className="md:col-span-2">
-                <span className="mb-2 block text-sm font-medium text-slate-700">
+                <span className={sectionSubTitleClass}>
                   {t("Career level (optional)", "职业级别（可选）")}
                 </span>
                 <select
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+                  className={fieldClass}
                   defaultValue={profile?.basicProfile.careerLevel ?? ""}
                   name="careerLevel"
                 >
                   <option value="">{t("Not specified", "未指定")}</option>
-                  <option value="student_new_grad">{t("Student / New Grad", "学生 / 应届")}</option>
+                  <option value="student">{t("Student", "在校生")}</option>
                   <option value="internship_candidate">{t("Internship Candidate", "实习候选人")}</option>
+                  <option value="student_new_grad">{t("New Grad", "应届生")}</option>
                   <option value="entry_level">{t("Entry Level", "入门级")}</option>
                   <option value="early_career">{t("Early Career", "职业早期")}</option>
                   <option value="mid_level">{t("Mid-Level", "中级")}</option>
@@ -573,10 +658,10 @@ export default async function BuildFlowPage({
 
       {step === 2 ? (
         <Card className={stepCardClass}>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-300">
             {t(
-              "Add education entries. Optional fields help recruiters understand academic strength.",
-              "填写教育经历。可选字段可帮助招聘方更好理解你的学术背景。",
+              "Add one education entry first. You can add another only when needed.",
+              "先填写一条教育经历；只有需要时再添加下一条。",
             )}
           </p>
           <form action={saveResumeAction} className="space-y-5">
@@ -586,23 +671,23 @@ export default async function BuildFlowPage({
             <input name="intakeMode" type="hidden" value="guided" />
             <input name="title" type="hidden" value={resume?.title ?? "Build From Scratch Draft"} />
 
-            {[1, 2, 3].map((index) => {
+            {Array.from({ length: educationCount }, (_, idx) => idx + 1).map((index) => {
               const item = parsedEducation[index - 1];
               return (
-                <div className="rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4" key={index}>
-                  <p className="text-sm font-semibold text-slate-900">{t("Education entry", "教育经历")} {index}</p>
+                <div className="rounded-2xl border border-slate-600/45 bg-slate-900/72 p-4" key={index}>
+                  <p className="text-sm font-semibold text-slate-100">{t("Education entry", "教育经历")} {index}</p>
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
                     <input
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                      className={fieldClass}
                       defaultValue={item?.school ?? ""}
                       name={`edu${index}_school`}
                       placeholder={t("School", "学校")}
                       type="text"
                     />
                     <label className="block">
-                      <span className="mb-1 block text-xs font-medium text-slate-600">{t("Degree", "学位")}</span>
+                      <span className="mb-1 block text-xs font-medium text-slate-300">{t("Degree", "学位")}</span>
                       <select
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+                        className={fieldClass}
                         defaultValue={item?.degree ?? ""}
                         name={`edu${index}_degree`}
                       >
@@ -618,7 +703,7 @@ export default async function BuildFlowPage({
                       </select>
                     </label>
                     <input
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                      className={fieldClass}
                       defaultValue={item?.major ?? ""}
                       name={`edu${index}_major`}
                       placeholder={t("Major", "专业")}
@@ -630,14 +715,14 @@ export default async function BuildFlowPage({
                       name={`edu${index}_graduationDate`}
                     />
                     <input
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                      className={fieldClass}
                       defaultValue={item?.gpa ?? ""}
                       name={`edu${index}_gpa`}
                       placeholder={t("GPA (optional)", "GPA（可选）")}
                       type="text"
                     />
                     <input
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                      className={fieldClass}
                       defaultValue={item?.honors ?? ""}
                       name={`edu${index}_honors`}
                       placeholder={t("Honors (optional)", "荣誉（可选）")}
@@ -645,7 +730,7 @@ export default async function BuildFlowPage({
                     />
                   </div>
                   <textarea
-                    className="mt-3 min-h-[80px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                    className="mt-3 min-h-[80px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
                     defaultValue={item?.coursework ?? ""}
                     name={`edu${index}_coursework`}
                     placeholder={t("Relevant coursework (optional)", "相关课程（可选）")}
@@ -654,12 +739,31 @@ export default async function BuildFlowPage({
               );
             })}
 
-            <p className="text-xs text-slate-500">{t("You can leave entries blank and return later.", "可先留空，后续再补充。")}</p>
+            <div className="flex flex-wrap gap-2">
+              {educationCount < 3 ? (
+                <Link
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-slate-500/55 bg-slate-900/72 px-3 text-xs font-medium text-slate-100 hover:border-cyan-300/60"
+                  href={buildStepHref(2, { eduCount: educationCount + 1 })}
+                >
+                  {t("+ Add another education entry", "+ 添加一条教育经历")}
+                </Link>
+              ) : null}
+              {educationCount > 1 ? (
+                <Link
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-slate-500/55 bg-slate-900/72 px-3 text-xs font-medium text-slate-300 hover:border-slate-300/70"
+                  href={buildStepHref(2, { eduCount: educationCount - 1 })}
+                >
+                  {t("Show fewer entries", "减少显示条目")}
+                </Link>
+              ) : null}
+            </div>
+
+            <p className="text-xs text-slate-400">{t("You can leave entries blank and return later.", "可先留空，后续再补充。")}</p>
 
             <div className="flex flex-wrap gap-3">
               <Link
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700"
-                href="/dashboard/flow/build?step=1"
+                href={buildStepHref(1)}
               >
                 <ArrowLeft className="h-4 w-4" />
                 {t("Back", "返回")}
@@ -677,10 +781,10 @@ export default async function BuildFlowPage({
 
       {step === 3 ? (
         <Card className={stepCardClass}>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-300">
             {t(
-              "Add internship or work entries. If you can, mention measurable outcomes.",
-              "填写工作或实习经历。尽量补充可量化的成果数据。",
+              "Add one experience entry at a time. ResumeForge can help rewrite weak bullets later.",
+              "每次先完成一条经历。后续可用 ResumeForge 自动强化薄弱表述。",
             )}
           </p>
           <form action={saveResumeAction} className="space-y-5">
@@ -690,32 +794,31 @@ export default async function BuildFlowPage({
             <input name="intakeMode" type="hidden" value="guided" />
             <input name="title" type="hidden" value={resume?.title ?? "Build From Scratch Draft"} />
 
-            {[1, 2, 3].map((index) => {
+            {Array.from({ length: experienceCount }, (_, idx) => idx + 1).map((index) => {
               const item = profile?.workExperiences[index - 1];
               return (
-                <div className="rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4" key={index}>
-                  <p className="text-sm font-semibold text-slate-900">{t("Experience entry", "经历条目")} {index}</p>
+                <div className="rounded-2xl border border-slate-600/45 bg-slate-900/72 p-4" key={index}>
+                  <p className="text-sm font-semibold text-slate-100">{t("Experience entry", "经历条目")} {index}</p>
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
                     <input
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                      className={fieldClass}
                       defaultValue={item?.company ?? ""}
                       name={`exp${index}_company`}
                       placeholder={t("Company", "公司")}
                       type="text"
                     />
                     <input
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                      className={fieldClass}
                       defaultValue={item?.title ?? ""}
                       name={`exp${index}_title`}
                       placeholder={t("Role/title", "职位")}
                       type="text"
                     />
-                    <input
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                    <LocationField
                       defaultValue={item?.location ?? ""}
                       name={`exp${index}_location`}
-                      placeholder={t("Location", "地点")}
-                      type="text"
+                      label={t("Location", "地点")}
+                      uiLanguage={uiLanguage}
                     />
                     <MonthRangeField
                       className="md:col-span-2"
@@ -725,30 +828,71 @@ export default async function BuildFlowPage({
                       startLabel={t("Start month", "开始月份")}
                     />
                   </div>
-                  <textarea
-                    className="mt-3 min-h-[90px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                  <label className="mt-3 block">
+                    <span className={sectionSubTitleClass}>
+                      {t("Responsibilities", "职责描述")}
+                      <FieldHelp
+                        text={t(
+                          "Describe scope and ownership. Example: Led migration of payment API with 4 engineers.",
+                          "描述职责范围和 ownership，例如：主导支付 API 迁移并协调 4 名工程师。",
+                        )}
+                      />
+                    </span>
+                    <textarea
+                    className="min-h-[90px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
                     defaultValue={item?.responsibilities ?? ""}
                     name={`exp${index}_responsibilities`}
-                    placeholder={t("Responsibilities", "职责描述")}
-                  />
-                  <textarea
-                    className="mt-3 min-h-[90px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                    placeholder={t("What did you own and execute?", "你负责并推动了什么？")}
+                    />
+                  </label>
+                  <label className="mt-3 block">
+                    <span className={sectionSubTitleClass}>
+                      {t("Achievements / outcomes", "成果 / 结果")}
+                      <FieldHelp
+                        text={t(
+                          "Focus on change after your work. Example: Increased activation from 42% to 58%.",
+                          "强调工作前后变化。例如：将激活率从 42% 提升到 58%。",
+                        )}
+                      />
+                    </span>
+                    <textarea
+                    className="min-h-[90px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
                     defaultValue={item?.achievements ?? ""}
                     name={`exp${index}_achievements`}
-                    placeholder={t("Achievements", "成果")}
-                  />
+                    placeholder={t("What improved because of your work?", "你的工作带来了什么改进？")}
+                    />
+                  </label>
                   <input
-                    className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                    className="mt-3 w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
                     defaultValue={item?.quantifiedImpact ?? ""}
                     name={`exp${index}_quantifiedImpact`}
-                    placeholder={t("Quantified impact (optional)", "量化影响（可选）")}
+                    placeholder={t("Quantified impact (optional): % / time / cost / users", "量化影响（可选）：百分比 / 时间 / 成本 / 用户规模")}
                     type="text"
                   />
                 </div>
               );
             })}
 
-            <p className="text-xs text-slate-500">
+            <div className="flex flex-wrap gap-2">
+              {experienceCount < 3 ? (
+                <Link
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-slate-500/55 bg-slate-900/72 px-3 text-xs font-medium text-slate-100 hover:border-cyan-300/60"
+                  href={buildStepHref(3, { expCount: experienceCount + 1 })}
+                >
+                  {t("+ Add another experience", "+ 添加一条经历")}
+                </Link>
+              ) : null}
+              {experienceCount > 1 ? (
+                <Link
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-slate-500/55 bg-slate-900/72 px-3 text-xs font-medium text-slate-300 hover:border-slate-300/70"
+                  href={buildStepHref(3, { expCount: experienceCount - 1 })}
+                >
+                  {t("Show fewer entries", "减少显示条目")}
+                </Link>
+              ) : null}
+            </div>
+
+            <p className="text-xs text-slate-400">
               {t(
                 "Example: Reduced processing time by 25% by automating weekly report generation.",
                 "示例：通过自动化周报流程，将处理时间缩短 25%。",
@@ -758,7 +902,7 @@ export default async function BuildFlowPage({
             <div className="flex flex-wrap gap-3">
               <Link
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700"
-                href="/dashboard/flow/build?step=2"
+                href={buildStepHref(2, { eduCount: educationCount })}
               >
                 <ArrowLeft className="h-4 w-4" />
                 {t("Back", "返回")}
@@ -776,7 +920,7 @@ export default async function BuildFlowPage({
 
       {step === 4 ? (
         <Card className={stepCardClass}>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-300">
             {t("Show projects that demonstrate practical skills and impact.", "填写能体现实战能力与影响力的项目经历。")}
           </p>
           <form action={saveResumeAction} className="space-y-5">
@@ -786,21 +930,21 @@ export default async function BuildFlowPage({
             <input name="intakeMode" type="hidden" value="guided" />
             <input name="title" type="hidden" value={resume?.title ?? "Build From Scratch Draft"} />
 
-            {[1, 2, 3].map((index) => {
+            {Array.from({ length: projectCount }, (_, idx) => idx + 1).map((index) => {
               const item = parsedProjects[index - 1];
               return (
-                <div className="rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4" key={index}>
-                  <p className="text-sm font-semibold text-slate-900">{t("Project entry", "项目条目")} {index}</p>
+                <div className="rounded-2xl border border-slate-600/45 bg-slate-900/72 p-4" key={index}>
+                  <p className="text-sm font-semibold text-slate-100">{t("Project entry", "项目条目")} {index}</p>
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
                     <input
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                      className={fieldClass}
                       defaultValue={item?.name ?? ""}
                       name={`project${index}_name`}
                       placeholder={t("Project name", "项目名称")}
                       type="text"
                     />
                     <input
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                      className={fieldClass}
                       defaultValue={item?.role ?? ""}
                       name={`project${index}_role`}
                       placeholder={t("Role", "角色")}
@@ -814,33 +958,95 @@ export default async function BuildFlowPage({
                       startLabel={t("Start month", "开始月份")}
                     />
                     <input
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                      className={fieldClass}
                       defaultValue={item?.technologies ?? ""}
                       name={`project${index}_technologies`}
                       placeholder={t("Technologies", "技术栈")}
                       type="text"
                     />
+                    <input
+                      className={fieldClass}
+                      defaultValue={item?.projectUrl ?? ""}
+                      name={`project${index}_projectUrl`}
+                      placeholder={t("Project link (optional)", "项目链接（可选）")}
+                      type="url"
+                    />
+                    <input
+                      className={fieldClass}
+                      defaultValue={item?.githubUrl ?? ""}
+                      name={`project${index}_githubUrl`}
+                      placeholder={t("GitHub link (optional)", "GitHub 链接（可选）")}
+                      type="url"
+                    />
+                    <input
+                      className={fieldClass}
+                      defaultValue={item?.demoUrl ?? ""}
+                      name={`project${index}_demoUrl`}
+                      placeholder={t("Demo / portfolio link (optional)", "演示 / 作品集链接（可选）")}
+                      type="url"
+                    />
                   </div>
-                  <textarea
-                    className="mt-3 min-h-[90px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                  <label className="mt-3 block">
+                    <span className={sectionSubTitleClass}>
+                      {t("Project description", "项目描述")}
+                      <FieldHelp
+                        text={t(
+                          "Explain problem, approach, and your role.",
+                          "建议描述问题背景、解决方法和你的角色贡献。",
+                        )}
+                      />
+                    </span>
+                    <textarea
+                    className="min-h-[90px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
                     defaultValue={item?.description ?? ""}
                     name={`project${index}_description`}
                     placeholder={t("Project description", "项目描述")}
-                  />
-                  <textarea
-                    className="mt-3 min-h-[80px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                    />
+                  </label>
+                  <label className="mt-3 block">
+                    <span className={sectionSubTitleClass}>
+                      {t("Impact / outcome (optional)", "结果 / 影响（可选）")}
+                      <FieldHelp
+                        text={t(
+                          "Include measurable results when possible: users, revenue, speed, quality.",
+                          "尽量补充可衡量结果：用户规模、营收、效率、质量等。",
+                        )}
+                      />
+                    </span>
+                    <textarea
+                    className="min-h-[80px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
                     defaultValue={item?.impact ?? ""}
                     name={`project${index}_impact`}
                     placeholder={t("Impact / outcome (optional)", "结果/影响（可选）")}
-                  />
+                    />
+                  </label>
                 </div>
               );
             })}
 
+            <div className="flex flex-wrap gap-2">
+              {projectCount < 3 ? (
+                <Link
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-slate-500/55 bg-slate-900/72 px-3 text-xs font-medium text-slate-100 hover:border-cyan-300/60"
+                  href={buildStepHref(4, { projectCount: projectCount + 1 })}
+                >
+                  {t("+ Add another project", "+ 添加一个项目")}
+                </Link>
+              ) : null}
+              {projectCount > 1 ? (
+                <Link
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-slate-500/55 bg-slate-900/72 px-3 text-xs font-medium text-slate-300 hover:border-slate-300/70"
+                  href={buildStepHref(4, { projectCount: projectCount - 1 })}
+                >
+                  {t("Show fewer entries", "减少显示条目")}
+                </Link>
+              ) : null}
+            </div>
+
             <div className="flex flex-wrap gap-3">
               <Link
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700"
-                href="/dashboard/flow/build?step=3"
+                href={buildStepHref(3, { expCount: experienceCount })}
               >
                 <ArrowLeft className="h-4 w-4" />
                 {t("Back", "返回")}
@@ -858,8 +1064,11 @@ export default async function BuildFlowPage({
 
       {step === 5 ? (
         <Card className={stepCardClass}>
-          <p className="text-sm text-slate-600">
-            {t("List your tools and capabilities. Keep it practical and role relevant.", "填写技能与工具，尽量与目标岗位保持相关。")}
+          <p className="text-sm text-slate-300">
+            {t(
+              "Search and pick skills from the library. Add custom tags only when needed.",
+              "优先从技能库选择，再按需补充自定义标签。",
+            )}
           </p>
           <form action={saveResumeAction} className="space-y-4">
             <input name="currentStep" type="hidden" value="5" />
@@ -868,42 +1077,23 @@ export default async function BuildFlowPage({
             <input name="intakeMode" type="hidden" value="guided" />
             <input name="title" type="hidden" value={resume?.title ?? "Build From Scratch Draft"} />
 
-            <TokenInputField
+            <SkillsLibraryField
               defaultValue={profile?.skills.join(", ") ?? ""}
-              helperText={t("Press Enter or comma to add each skill.", "输入后按 Enter 或逗号添加技能标签。")}
-              label={t("Programming languages", "编程语言")}
-              name="languagesCsv"
-              placeholder={t("Python, JavaScript, TypeScript", "Python、JavaScript、TypeScript")}
+              groups={skillLibraryGroups}
+              helperText={t(
+                "Choose skills you can prove in experience/projects. This list is used directly in generation.",
+                "请选择你能在经历/项目中证明的技能。该列表会直接用于生成。",
+              )}
+              label={t("Skills and tools", "技能与工具")}
+              name="skillsCsv"
+              placeholder={t("Search skill or type custom...", "搜索技能或输入自定义...")}
+              uiLanguage={uiLanguage}
             />
-            <TokenInputField
-              helperText={t("Use concise stack names.", "建议使用简洁技术名。")}
-              label={t("Frameworks", "框架")}
-              name="frameworksCsv"
-              placeholder={t("React, Next.js, Node.js", "React、Next.js、Node.js")}
-            />
-            <TokenInputField
-              helperText={t("Include cloud/devops/tools if relevant.", "可补充云平台、DevOps 与常用工具。")}
-              label={t("Tools / platforms", "工具 / 平台")}
-              name="toolsPlatformsCsv"
-              placeholder={t("AWS, Docker, GitHub Actions", "AWS、Docker、GitHub Actions")}
-            />
-            <div className="grid gap-4 md:grid-cols-2">
-              <TokenInputField
-                label={t("Soft skills (optional)", "软技能（可选）")}
-                name="softSkillsCsv"
-                placeholder={t("Communication, stakeholder alignment", "沟通、跨团队协作")}
-              />
-              <TokenInputField
-                label={t("Domain knowledge (optional)", "行业知识（可选）")}
-                name="domainKnowledgeCsv"
-                placeholder={t("Fintech, edtech, healthcare", "金融科技、教育科技、医疗")}
-              />
-            </div>
 
             <div className="flex flex-wrap gap-3">
               <Link
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700"
-                href="/dashboard/flow/build?step=4"
+                href={buildStepHref(4, { projectCount })}
               >
                 <ArrowLeft className="h-4 w-4" />
                 {t("Back", "返回")}
@@ -921,10 +1111,10 @@ export default async function BuildFlowPage({
 
       {step === 6 ? (
         <Card className={stepCardClass}>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-300">
             {t(
-              "Optional fields below can improve output quality. Leave blank if you do not have this information yet.",
-              "以下可选字段可提升生成质量。若暂无信息，可先留空。",
+              "These are optional trust signals. Fill only what is real and useful.",
+              "这些是可选加分信息，只填写真实且有价值的内容即可。",
             )}
           </p>
           <form action={saveResumeAction} className="space-y-4">
@@ -936,21 +1126,21 @@ export default async function BuildFlowPage({
 
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">
+                <span className={sectionSubTitleClass}>
                   {t("Certifications (one per line)", "证书（每行一条）")}
                 </span>
                 <textarea
-                  className="min-h-[110px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                  className="min-h-[110px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
                   defaultValue={profile?.certifications.join("\n") ?? ""}
                   name="certificationLines"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">
+                <span className={sectionSubTitleClass}>
                   {t("Awards (one per line)", "奖项（每行一条）")}
                 </span>
                 <textarea
-                  className="min-h-[110px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                  className="min-h-[110px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
                   defaultValue={profile?.awards.join("\n") ?? ""}
                   name="awardLines"
                 />
@@ -958,21 +1148,21 @@ export default async function BuildFlowPage({
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <input
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                className={fieldClass}
                 defaultValue={profile?.links.linkedIn ?? ""}
                 name="linkedInUrl"
                 placeholder={t("LinkedIn URL", "LinkedIn 链接")}
                 type="text"
               />
               <input
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                className={fieldClass}
                 defaultValue={profile?.links.github ?? ""}
                 name="githubUrl"
                 placeholder={t("GitHub URL", "GitHub 链接")}
                 type="text"
               />
               <input
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                className={fieldClass}
                 defaultValue={profile?.links.portfolio ?? ""}
                 name="portfolioUrl"
                 placeholder={t("Portfolio URL", "作品集链接")}
@@ -980,51 +1170,27 @@ export default async function BuildFlowPage({
               />
             </div>
             <textarea
-              className="min-h-[90px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              className="min-h-[90px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
               name="volunteerExperience"
               placeholder={t("Volunteer experience (optional)", "志愿经历（可选）")}
             />
             <textarea
-              className="min-h-[90px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              className="min-h-[90px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
               name="leadershipExperience"
               placeholder={t("Leadership experience (optional)", "领导力经历（可选）")}
             />
             <textarea
-              className="min-h-[90px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              className="min-h-[90px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
               name="extracurriculars"
               placeholder={t("Extracurriculars (optional)", "课外活动（可选）")}
             />
             <textarea
-              className="min-h-[90px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              className="min-h-[90px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
               name="publicationsLines"
               placeholder={t("Publications (one per line, optional)", "论文/出版物（每行一条，可选）")}
             />
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">
-                {t("Keywords to emphasize (optional)", "重点关键词（可选）")}
-              </span>
-              <input
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-                defaultValue={profile?.preferences.keywordEmphasis ?? ""}
-                name="keywordEmphasis"
-                placeholder={t("Machine learning, distributed systems", "机器学习、分布式系统")}
-                type="text"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">
-                {t("Industries of interest (optional)", "目标行业（可选）")}
-              </span>
-              <input
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-                defaultValue={profile?.preferences.industryPreference ?? ""}
-                name="industryPreference"
-                placeholder={t("Fintech, healthtech, SaaS", "金融科技、医疗科技、SaaS")}
-                type="text"
-              />
-            </label>
             <textarea
-              className="min-h-[90px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              className="min-h-[90px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
               defaultValue={profile?.notes ?? ""}
               name="resumeNotes"
               placeholder={t("Any other context you'd like reflected in the resume", "其他希望在简历中体现的信息")}
@@ -1033,7 +1199,7 @@ export default async function BuildFlowPage({
             <div className="flex flex-wrap gap-3">
               <Link
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700"
-                href="/dashboard/flow/build?step=5"
+                href={buildStepHref(5)}
               >
                 <ArrowLeft className="h-4 w-4" />
                 {t("Back", "返回")}
@@ -1051,11 +1217,11 @@ export default async function BuildFlowPage({
 
       {step === 7 ? (
         <Card className={stepCardClass}>
-          <div className="rounded-2xl border border-slate-200/70 bg-slate-50/55 p-4">
-            <p className="text-sm font-medium text-slate-900">
+          <div className="rounded-2xl border border-slate-600/45 bg-slate-900/70 p-4">
+            <p className="text-sm font-medium text-slate-100">
               {t("Parse from public job URL", "从公开岗位链接自动解析")}
             </p>
-            <p className="mt-1 text-xs text-slate-600">
+            <p className="mt-1 text-xs text-slate-300">
               {t(
                 "Paste a public job posting URL. ResumeForge will fetch the page, extract structured fields with AI, then you can edit everything below.",
                 "粘贴公开岗位链接。ResumeForge 会抓取页面并用 AI 提取结构化字段，你可在下方继续编辑。",
@@ -1066,7 +1232,7 @@ export default async function BuildFlowPage({
               <input name="jobDescriptionId" type="hidden" value={jobDescription?.id ?? ""} />
               <input name="returnTo" type="hidden" value="/dashboard/flow/build" />
               <input
-                className="h-11 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-sm"
+                className="h-11 flex-1 rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 text-sm text-slate-100 placeholder:text-slate-500"
                 defaultValue={jobDescription?.briefData?.sourceUrl ?? ""}
                 name="jobPostingUrl"
                 placeholder={t("https://company.com/careers/job-posting", "https://company.com/careers/job-posting")}
@@ -1076,7 +1242,7 @@ export default async function BuildFlowPage({
                 {t("Parse job posting", "解析岗位链接")}
               </SubmitButton>
             </form>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-slate-400">
               {t(
                 "If parsing fails due to anti-bot pages, paste job description text manually below.",
                 "若因反爬策略无法解析，请直接在下方粘贴岗位描述文本。",
@@ -1084,7 +1250,7 @@ export default async function BuildFlowPage({
             </p>
           </div>
 
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-300">
             {t(
               "Add role context manually or refine the parsed results. More detail improves tailoring quality.",
               "可手动补充岗位信息，或基于解析结果继续完善。信息越完整，后续定向优化越准确。",
@@ -1098,55 +1264,50 @@ export default async function BuildFlowPage({
 
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block md:col-span-2">
-                <span className="mb-2 block text-sm font-medium text-slate-700">
-                  {t("Source job URL (optional)", "岗位来源链接（可选）")}
-                </span>
-                <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-                  defaultValue={jobDescription?.briefData?.sourceUrl ?? ""}
-                  name="sourceUrl"
+                  <span className={sectionSubTitleClass}>
+                    {t("Source job URL (optional)", "岗位来源链接（可选）")}
+                  </span>
+                  <input
+                    className={fieldClass}
+                    defaultValue={jobDescription?.briefData?.sourceUrl ?? ""}
+                    name="sourceUrl"
                   placeholder={t("Paste the posting URL for traceability", "保留岗位链接便于追踪来源")}
                   type="url"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">
-                  {t("Target company (optional)", "目标公司（可选）")}
-                </span>
-                <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-                  defaultValue={jobDescription?.company ?? ""}
-                  name="company"
-                  type="text"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">
-                  {t("Target role", "目标岗位")}
-                </span>
-                <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-                  defaultValue={jobDescription?.role ?? ""}
-                  name="role"
-                  placeholder={t("e.g. Software Engineer", "例如：后端工程师")}
-                  type="text"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">
-                  {t("Target location (optional)", "目标地点（可选）")}
-                </span>
-                <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                  <span className={sectionSubTitleClass}>
+                    {t("Target company (optional)", "目标公司（可选）")}
+                  </span>
+                  <input
+                    className={fieldClass}
+                    defaultValue={jobDescription?.company ?? ""}
+                    name="company"
+                    type="text"
+                  />
+                </label>
+                <label className="block">
+                  <span className={sectionSubTitleClass}>
+                    {t("Target role", "目标岗位")}
+                  </span>
+                  <input
+                    className={fieldClass}
+                    defaultValue={jobDescription?.role ?? ""}
+                    name="role"
+                    placeholder={t("e.g. Software Engineer", "例如：后端工程师")}
+                    type="text"
+                  />
+                </label>
+                <LocationField
                   defaultValue={jobDescription?.location ?? ""}
+                  label={t("Target location (optional)", "目标地点（可选）")}
                   name="location"
-                  type="text"
+                  uiLanguage={uiLanguage}
                 />
-              </label>
               <div className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">
-                  {t("Employment type (optional)", "雇佣类型（可选）")}
-                </span>
+              <span className="block text-sm font-medium text-slate-200">
+                {t("Employment type (optional)", "雇佣类型（可选）")}
+              </span>
                 <SegmentedOptionGroup
                   className="md:grid-cols-4"
                   defaultValue={jobDescription?.briefData?.employmentType ?? ""}
@@ -1165,7 +1326,7 @@ export default async function BuildFlowPage({
               </div>
             </div>
             <textarea
-              className="min-h-[180px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              className="min-h-[180px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
               defaultValue={jobDescription?.description ?? ""}
               name="description"
               placeholder={t(
@@ -1174,7 +1335,7 @@ export default async function BuildFlowPage({
               )}
             />
             <div className="space-y-2">
-              <span className="block text-sm font-medium text-slate-700">
+              <span className="block text-sm font-medium text-slate-200">
                 {t("Seniority level (optional)", "级别要求（可选）")}
               </span>
               <SegmentedOptionGroup
@@ -1190,7 +1351,7 @@ export default async function BuildFlowPage({
               />
             </div>
             <div className="space-y-2">
-              <span className="block text-sm font-medium text-slate-700">
+              <span className="block text-sm font-medium text-slate-200">
                 {t("Work mode (optional)", "办公模式（可选）")}
               </span>
               <SegmentedOptionGroup
@@ -1219,7 +1380,7 @@ export default async function BuildFlowPage({
               placeholder={t("Distributed systems, ownership", "分布式系统、Owner 意识")}
             />
             <textarea
-              className="min-h-[80px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              className="min-h-[80px] w-full rounded-2xl border border-slate-600/55 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500"
               defaultValue={jobDescription?.briefData?.responsibilitiesSummary ?? ""}
               name="responsibilitiesSummary"
               placeholder={t("Hiring priorities / role emphasis (optional)", "招聘重点 / 岗位侧重点（可选）")}
@@ -1228,7 +1389,7 @@ export default async function BuildFlowPage({
             <div className="flex flex-wrap gap-3">
               <Link
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700"
-                href="/dashboard/flow/build?step=6"
+                href={buildStepHref(6)}
               >
                 <ArrowLeft className="h-4 w-4" />
                 {t("Back", "返回")}
@@ -1246,10 +1407,10 @@ export default async function BuildFlowPage({
 
       {step === 8 ? (
         <Card className={stepCardClass}>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-300">
             {t(
-              "Output Studio controls language, template, and generation style. Revisit any time before generating.",
-              "输出工作台用于配置语言、模板和生成风格。生成前可随时回到此处修改。",
+              "Keep output settings simple. You can always revisit before regeneration/export.",
+              "输出设置保持简洁即可，生成和导出前都可以随时回改。",
             )}
           </p>
           <form action={saveResumeAction} className="space-y-4">
@@ -1259,11 +1420,11 @@ export default async function BuildFlowPage({
             <input name="intakeMode" type="hidden" value="guided" />
             <input name="title" type="hidden" value={resume?.title ?? "Build From Scratch Draft"} />
 
-            <div className="rounded-2xl border border-slate-200/65 bg-slate-50/45 p-4">
-              <p className="text-sm font-medium text-slate-900">
+            <div className="rounded-2xl border border-slate-600/45 bg-slate-900/72 p-4">
+              <p className="text-sm font-medium text-slate-100">
                 {pickText(uiLanguage, "Output language", "输出语言")}
               </p>
-              <p className="mt-1 text-xs text-slate-600">
+              <p className="mt-1 text-xs text-slate-300">
                 {pickText(
                   uiLanguage,
                   "Choose the final language of the generated resume.",
@@ -1289,27 +1450,31 @@ export default async function BuildFlowPage({
               />
             </div>
 
-            <div className="rounded-2xl border border-slate-200/65 bg-slate-50/45 p-4">
-              <p className="text-sm font-medium text-slate-900">
+            <div className="rounded-2xl border border-slate-600/45 bg-slate-900/72 p-4">
+              <p className="text-sm font-medium text-slate-100">
                 {pickText(uiLanguage, "Generation style", "生成风格")}
               </p>
               <div className="mt-3 space-y-3">
                 <div>
-                  <span className="mb-2 block text-xs font-medium text-slate-600">
+                  <span className="mb-2 block text-xs font-medium text-slate-300">
                     {pickText(uiLanguage, "Resume style", "简历主风格")}
                   </span>
                   <SegmentedOptionGroup
                     className="md:grid-cols-3"
                     defaultValue={profile?.preferences.resumeStyle ?? ""}
                     name="resumeStyle"
-                    options={resumeStyleOptions.map((item) => ({
-                      value: item.value,
-                      label: pickText(uiLanguage, item.en, item.zh),
-                    }))}
+                    options={[
+                      { value: "concise", label: pickText(uiLanguage, "Concise", "简洁") },
+                      { value: "technical", label: pickText(uiLanguage, "Technical", "技术导向") },
+                      { value: "recruiter_friendly", label: pickText(uiLanguage, "Recruiter-friendly", "招聘友好") },
+                      { value: "achievement_focused", label: pickText(uiLanguage, "Results-focused", "成果导向") },
+                      { value: "student_friendly", label: pickText(uiLanguage, "Student / New-grad", "学生 / 应届友好") },
+                      { value: "leadership_focused", label: pickText(uiLanguage, "Leadership-oriented", "领导力导向") },
+                    ]}
                   />
                 </div>
                 <div>
-                  <span className="mb-2 block text-xs font-medium text-slate-600">
+                  <span className="mb-2 block text-xs font-medium text-slate-300">
                     {pickText(uiLanguage, "Summary style (optional)", "摘要风格（可选）")}
                   </span>
                   <SegmentedOptionGroup
@@ -1326,7 +1491,7 @@ export default async function BuildFlowPage({
 
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <div>
-                  <span className="mb-2 block text-xs font-medium text-slate-600">
+                  <span className="mb-2 block text-xs font-medium text-slate-300">
                     {pickText(uiLanguage, "Page length preference", "页数偏好")}
                   </span>
                   <SegmentedOptionGroup
@@ -1340,7 +1505,7 @@ export default async function BuildFlowPage({
                   />
                 </div>
                 <div>
-                  <span className="mb-2 block text-xs font-medium text-slate-600">
+                  <span className="mb-2 block text-xs font-medium text-slate-300">
                     {pickText(uiLanguage, "Tone preference", "语气偏好")}
                   </span>
                   <SegmentedOptionGroup
@@ -1356,8 +1521,8 @@ export default async function BuildFlowPage({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200/65 bg-slate-50/45 p-4 text-xs text-slate-600">
-              <p className="font-medium text-slate-800">
+            <div className="rounded-2xl border border-slate-600/45 bg-slate-900/72 p-4 text-xs text-slate-300">
+              <p className="font-medium text-slate-100">
                 {pickText(uiLanguage, "Template matching tip", "模板选择提示")}
               </p>
               <p className="mt-1">
@@ -1374,34 +1539,41 @@ export default async function BuildFlowPage({
               templates={RESUME_TEMPLATES}
               uiLanguage={uiLanguage}
             />
-            <TokenInputField
-              helperText={t("Use tags for sections that should stand out.", "可用标签指定你希望重点突出的内容分段。")}
-              label={pickText(uiLanguage, "Sections to emphasize (optional)", "重点强化分段（可选）")}
-              name="sectionEmphasis"
-              placeholder={pickText(uiLanguage, "Projects, experience, leadership", "项目、经历、领导力")}
-            />
-            <TokenInputField
-              defaultValue={profile?.preferences.keywordEmphasis ?? ""}
-              helperText={t("These keywords influence rewrite and tailoring focus.", "这些关键词会影响改写与定向优化重点。")}
-              label={pickText(uiLanguage, "Keyword emphasis (optional)", "关键词强调（可选）")}
-              name="keywordEmphasis"
-            />
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">
-                {pickText(uiLanguage, "Industry/job family preference (optional)", "行业/岗位族偏好（可选）")}
-              </span>
-              <input
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-                defaultValue={profile?.preferences.industryPreference ?? ""}
-                name="industryPreference"
-                type="text"
-              />
-            </label>
+            <details className="rounded-2xl border border-slate-600/45 bg-slate-900/72 p-4">
+              <summary className="cursor-pointer text-sm font-medium text-slate-100">
+                {pickText(uiLanguage, "Advanced preferences (optional)", "高级偏好（可选）")}
+              </summary>
+              <div className="mt-3 space-y-3">
+                <TokenInputField
+                  helperText={t("Use only when you know exactly what should be emphasized.", "仅在你明确知道需要强化哪些关键词时填写。")}
+                  label={pickText(uiLanguage, "Keyword emphasis (optional)", "关键词强调（可选）")}
+                  name="keywordEmphasis"
+                  defaultValue={profile?.preferences.keywordEmphasis ?? ""}
+                />
+                <TokenInputField
+                  helperText={t("Optional tags for section focus.", "可选标签，用于分段强调。")}
+                  label={pickText(uiLanguage, "Section emphasis (optional)", "分段强调（可选）")}
+                  name="sectionEmphasis"
+                  placeholder={pickText(uiLanguage, "Projects, leadership", "项目、领导力")}
+                />
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-slate-200">
+                    {pickText(uiLanguage, "Industry preference (optional)", "行业偏好（可选）")}
+                  </span>
+                  <input
+                    className={fieldClass}
+                    defaultValue={profile?.preferences.industryPreference ?? ""}
+                    name="industryPreference"
+                    type="text"
+                  />
+                </label>
+              </div>
+            </details>
 
             <div className="flex flex-wrap gap-3">
               <Link
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700"
-                href="/dashboard/flow/build?step=7"
+                href={buildStepHref(7)}
               >
                 <ArrowLeft className="h-4 w-4" />
                 {pickText(uiLanguage, "Back", "返回")}
@@ -1418,9 +1590,9 @@ export default async function BuildFlowPage({
       ) : null}
 
       {step === 9 ? (
-        <Card className="space-y-6 border-slate-200/70 bg-white/78 p-6 shadow-[0_30px_75px_-62px_rgba(15,23,42,0.45)] backdrop-blur-sm">
+        <Card className="space-y-6 border-slate-600/45 bg-slate-900/72 p-6 shadow-[0_26px_60px_-45px_rgba(15,23,42,0.78)] backdrop-blur-sm">
           <div>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-300">
               {pickText(
                 uiLanguage,
                 "Review what you entered, then generate your first resume draft.",
@@ -1429,9 +1601,9 @@ export default async function BuildFlowPage({
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200/65 bg-slate-50/70 p-4">
-              <p className="text-sm font-semibold text-slate-900">{t("Collected sections", "已收集分段")}</p>
-              <ul className="mt-3 space-y-2 text-sm text-slate-700">
+            <div className="rounded-2xl border border-slate-600/45 bg-slate-900/76 p-4">
+              <p className="text-sm font-semibold text-slate-100">{t("Collected sections", "已收集分段")}</p>
+              <ul className="mt-3 space-y-2 text-sm text-slate-300">
                 {[
                   { done: hasStep1, label: t("Basic identity", "基础身份信息") },
                   { done: hasStep2, label: t("Education", "教育背景") },
@@ -1446,8 +1618,8 @@ export default async function BuildFlowPage({
                       className={cn(
                         "rounded-full px-2.5 py-1 text-[11px] font-medium",
                         item.done
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-200/70 text-slate-600",
+                          ? "bg-emerald-950/40 text-emerald-100"
+                          : "bg-slate-800 text-slate-300",
                       )}
                     >
                       {item.done ? t("Complete", "完成") : t("Pending", "待补充")}
@@ -1456,11 +1628,11 @@ export default async function BuildFlowPage({
                 ))}
               </ul>
             </div>
-            <div className="rounded-2xl border border-slate-200/65 bg-slate-50/70 p-4">
-              <p className="text-sm font-semibold text-slate-900">
+            <div className="rounded-2xl border border-slate-600/45 bg-slate-900/76 p-4">
+              <p className="text-sm font-semibold text-slate-100">
                 {t("Missing info that can improve quality", "可补充信息（可提升质量）")}
               </p>
-              <ul className="mt-2 space-y-1 text-sm text-slate-600">
+              <ul className="mt-2 space-y-1 text-sm text-slate-300">
                 {!profile?.professionalSummary ? <li>• {t("Add a professional summary.", "建议补充职业摘要。")}</li> : null}
                 {!hasStep3 ? <li>• {t("Add at least one experience entry.", "至少补充一条工作/实习经历。")}</li> : null}
                 {!resume?.parsed.experienceBullets.some((bullet) => /\d/.test(bullet)) ? (
@@ -1503,16 +1675,16 @@ export default async function BuildFlowPage({
       ) : null}
 
       {step === 10 ? (
-        <Card className="space-y-6 border-slate-200/70 bg-white/78 p-6 shadow-[0_30px_75px_-62px_rgba(15,23,42,0.45)] backdrop-blur-sm">
+        <Card className="space-y-6 border-slate-600/45 bg-slate-900/72 p-6 shadow-[0_26px_60px_-45px_rgba(15,23,42,0.78)] backdrop-blur-sm">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-800">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-500/50 bg-slate-950/65 text-slate-100">
               <FileText className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-100">
                 {pickText(uiLanguage, "Generated resume draft", "已生成简历草稿")}
               </h2>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-slate-300">
                 {pickText(
                   uiLanguage,
                   "Preview, edit, regenerate, and export from here.",
