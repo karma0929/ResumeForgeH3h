@@ -101,13 +101,19 @@ function buildUploadRedirectPath(input: {
   step: number | null;
   query: Record<string, string>;
 }) {
-  const params = new URLSearchParams(input.query);
+  const [pathname, existingQuery = ""] = input.basePath.split("?");
+  const params = new URLSearchParams(existingQuery);
+
+  for (const [key, value] of Object.entries(input.query)) {
+    params.set(key, value);
+  }
 
   if (input.step) {
     params.set("step", String(input.step));
   }
 
-  return `${input.basePath}?${params.toString()}`;
+  const queryString = params.toString();
+  return queryString ? `${pathname}?${queryString}` : pathname;
 }
 
 function rethrowRedirect(error: unknown) {
