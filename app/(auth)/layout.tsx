@@ -10,8 +10,12 @@ export const metadata: Metadata = {
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-16">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_32%),linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)]" />
+    <main className="rf-dark-ui relative flex min-h-screen items-center justify-center px-6 py-16">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="ambient-glow ambient-glow-a" />
+        <div className="ambient-glow ambient-glow-b" />
+        <div className="ambient-grid" />
+      </div>
       {children}
     </main>
   );

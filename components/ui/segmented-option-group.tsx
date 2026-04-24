@@ -31,10 +31,10 @@ export function SegmentedOptionGroup({
               type="radio"
               value={option.value}
             />
-            <span className="block rounded-2xl border border-slate-200/85 bg-white/85 px-3 py-2.5 text-sm text-slate-700 transition hover:border-slate-300 hover:bg-white peer-focus-visible:border-sky-300 peer-focus-visible:ring-2 peer-focus-visible:ring-sky-200 peer-checked:border-sky-300 peer-checked:bg-sky-50 peer-checked:text-sky-900">
+            <span className="block rounded-2xl border border-slate-600/45 bg-slate-900/75 px-3 py-2.5 text-sm text-slate-200 transition hover:border-slate-300/60 hover:bg-slate-800/85 peer-focus-visible:border-cyan-300 peer-focus-visible:ring-2 peer-focus-visible:ring-cyan-400/30 peer-checked:border-cyan-300/80 peer-checked:bg-gradient-to-r peer-checked:from-cyan-500/22 peer-checked:to-blue-500/28 peer-checked:text-slate-100">
               <span className="block font-medium">{option.label}</span>
               {option.hint ? (
-                <span className="mt-0.5 block text-xs text-slate-500 peer-checked:text-sky-700">{option.hint}</span>
+                <span className="mt-0.5 block text-xs text-slate-400 peer-checked:text-cyan-100">{option.hint}</span>
               ) : null}
             </span>
           </label>

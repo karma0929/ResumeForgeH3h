@@ -14,6 +14,7 @@ import { MonthRangeField } from "@/components/ui/month-range-field";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { Reveal } from "@/components/ui/reveal";
 import { SegmentedOptionGroup } from "@/components/ui/segmented-option-group";
 import { StatusBanner } from "@/components/ui/status-banner";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -319,7 +320,7 @@ export default async function BuildFlowPage({
   const parsedProjects = (profile?.projects ?? []).slice(0, 3).map(parseProjectLine);
   const outputLanguage = profile?.preferences.outputLanguage || "en";
   const templateId = profile?.preferences.templateId || "classic_ats";
-  const stepCardClass = "space-y-5 border-slate-200/45 bg-white/68 p-6 shadow-[0_22px_50px_-44px_rgba(15,23,42,0.35)] backdrop-blur-sm";
+  const stepCardClass = "space-y-5 border-slate-600/45 bg-slate-900/72 p-6 shadow-[0_26px_60px_-45px_rgba(15,23,42,0.78)] backdrop-blur-sm";
   const previewModel =
     originalVersion && resume?.profileData
       ? buildResumeRenderModel({
@@ -332,45 +333,48 @@ export default async function BuildFlowPage({
   const exportSuffix = `&lang=${encodeURIComponent(outputLanguage)}&template=${encodeURIComponent(templateId)}`;
 
   return (
-    <div className="relative space-y-7">
+    <div className="rf-dark-ui relative space-y-7">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-2 -z-10 h-56 rounded-[42px] bg-[radial-gradient(circle_at_20%_18%,rgba(14,165,233,0.14),transparent_48%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.12),transparent_44%)] blur-2xl"
+        className="pointer-events-none absolute inset-x-0 top-2 -z-10 h-56 rounded-[42px] bg-[radial-gradient(circle_at_20%_18%,rgba(14,165,233,0.24),transparent_48%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.22),transparent_44%)] blur-2xl"
       />
-      <DashboardHeader
-        action={
-          <Link
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700"
-            href="/dashboard"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {pickText(uiLanguage, "Back to start", "返回起点")}
-          </Link>
-        }
-        description={pickText(
-          uiLanguage,
-          "Complete one section at a time. Most fields are optional, and every step supports save draft.",
-          "一次只完成一个步骤。大多数字段均可选，并支持每步保存草稿。",
-        )}
-        title={pickText(uiLanguage, "Build From Scratch", "从零创建")}
-        workspaceLabel={pickText(uiLanguage, "ResumeForge Workspace", "ResumeForge 工作区")}
-      />
+      <Reveal>
+        <DashboardHeader
+          action={
+            <Link
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-slate-500/45 bg-slate-900/75 px-4 text-sm font-medium text-slate-100"
+              href="/dashboard"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {pickText(uiLanguage, "Back to start", "返回起点")}
+            </Link>
+          }
+          description={pickText(
+            uiLanguage,
+            "Complete one section at a time. Most fields are optional, and every step supports save draft.",
+            "一次只完成一个步骤。大多数字段均可选，并支持每步保存草稿。",
+          )}
+          title={pickText(uiLanguage, "Build From Scratch", "从零创建")}
+          workspaceLabel={pickText(uiLanguage, "ResumeForge Workspace", "ResumeForge 工作区")}
+        />
+      </Reveal>
 
       {banner ? <StatusBanner {...banner} /> : null}
 
-      <section className="overflow-hidden rounded-[30px] border border-slate-200/65 bg-white/72 p-5 shadow-[0_22px_70px_-54px_rgba(15,23,42,0.45)] backdrop-blur-sm">
+      <Reveal delayMs={70}>
+        <section className="rf-surface-strong overflow-hidden rounded-[30px] p-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{t("Build Flow", "构建流程")}</p>
-            <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{t("Build Flow", "构建流程")}</p>
+            <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
               {stepMeta.title}
             </h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-slate-300">
               {t("Recommended next:", "推荐下一步：")}{" "}
-              <span className="font-medium text-slate-900">{steps[firstIncomplete - 1]?.title}</span>
+              <span className="font-medium text-slate-100">{steps[firstIncomplete - 1]?.title}</span>
             </p>
           </div>
-          <Badge className="bg-white/85 text-slate-700">{progressPercent}% {t("complete", "已完成")}</Badge>
+          <Badge className="border-cyan-400/45 bg-cyan-950/30 text-cyan-100">{progressPercent}% {t("complete", "已完成")}</Badge>
         </div>
 
         <div className="mt-4 overflow-x-auto">
@@ -385,10 +389,10 @@ export default async function BuildFlowPage({
                     className={cn(
                       "group inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition",
                       isCurrent
-                        ? "border-sky-300 bg-sky-50 text-sky-900 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.8)]"
+                        ? "border-cyan-300/80 bg-gradient-to-r from-cyan-500/25 to-blue-500/30 text-cyan-50 shadow-[inset_0_0_0_1px_rgba(224,242,254,0.18)]"
                         : done
-                          ? "border-emerald-200 bg-emerald-50/70 text-emerald-800"
-                          : "border-slate-200/80 bg-white/85 text-slate-600 hover:border-slate-300 hover:text-slate-900",
+                          ? "border-emerald-400/55 bg-emerald-950/25 text-emerald-100"
+                          : "border-slate-600/55 bg-slate-900/72 text-slate-300 hover:border-slate-300/70 hover:text-slate-100",
                     )}
                     href={`/dashboard/flow/build?step=${item.number}`}
                   >
@@ -396,22 +400,22 @@ export default async function BuildFlowPage({
                       className={cn(
                         "flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold",
                         isCurrent
-                          ? "bg-sky-600 text-white"
+                          ? "bg-cyan-500 text-slate-950"
                           : done
-                            ? "bg-emerald-600 text-white"
-                            : "bg-slate-200 text-slate-700 group-hover:bg-slate-300",
+                            ? "bg-emerald-400 text-slate-950"
+                            : "bg-slate-700 text-slate-100 group-hover:bg-slate-500",
                       )}
                     >
                       {done ? "✓" : item.number}
                     </span>
                     <span className="whitespace-nowrap">{item.title}</span>
                     {optionalSteps.has(item.number) ? (
-                      <span className="rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] text-slate-500">
+                      <span className="rounded-full bg-slate-800/85 px-1.5 py-0.5 text-[10px] text-slate-300">
                         {t("optional", "可选")}
                       </span>
                     ) : null}
                     {isNext && !isCurrent ? (
-                      <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-700">
+                      <span className="rounded-full bg-cyan-900/55 px-1.5 py-0.5 text-[10px] text-cyan-100">
                         {t("next", "下一步")}
                       </span>
                     ) : null}
@@ -421,7 +425,7 @@ export default async function BuildFlowPage({
                       aria-hidden
                       className={cn(
                         "h-px w-4 rounded-full",
-                        done ? "bg-emerald-200" : "bg-slate-200",
+                        done ? "bg-emerald-400/70" : "bg-slate-700",
                       )}
                     />
                   ) : null}
@@ -433,12 +437,14 @@ export default async function BuildFlowPage({
         <div className="mt-1">
           <ProgressBar value={progressPercent} />
         </div>
-      </section>
+        </section>
+      </Reveal>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <Reveal delayMs={110}>
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-200/55 bg-white/55 px-3 py-2 text-sm text-slate-600">
-            <span className="font-medium text-slate-900">
+          <div className="rounded-2xl border border-slate-600/45 bg-slate-900/72 px-3 py-2 text-sm text-slate-300">
+            <span className="font-medium text-slate-100">
               {t(`Step ${step} of 10`, `第 ${step} / 10 步`)}
             </span>{" "}
             · {stepMeta.description}
@@ -1670,19 +1676,19 @@ export default async function BuildFlowPage({
       ) : null}
         </div>
         <aside className="xl:sticky xl:top-24 xl:h-fit">
-          <div className="rounded-[24px] border border-slate-200/80 bg-white/72 p-4 shadow-[0_24px_70px_-56px_rgba(15,23,42,0.45)] backdrop-blur-sm">
+          <div className="rf-surface rounded-[24px] p-4">
             {step < 7 ? (
               <>
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">
                   {t("Workspace guidance", "工作区提示")}
                 </p>
-                <p className="mt-2 text-sm text-slate-700">
+                <p className="mt-2 text-sm text-slate-300">
                   {t(
                     "Focus on profile content first. Output settings and template studio unlock after target role setup.",
                     "先完善简历内容。完成目标岗位信息后，再进入输出设置与模板工作台。",
                   )}
                 </p>
-                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/85 p-3 text-xs text-slate-600">
+                <div className="mt-3 rounded-2xl border border-slate-600/45 bg-slate-900/76 p-3 text-xs text-slate-300">
                   <p>
                     {t("Recommended next", "推荐下一步")}：{steps[firstIncomplete - 1]?.title}
                   </p>
@@ -1701,14 +1707,14 @@ export default async function BuildFlowPage({
               </>
             ) : (
               <>
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{t("Output Studio", "输出工作台")}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-600">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{t("Output Studio", "输出工作台")}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-300">
                   {t(
                     "Configure output language, template, and generation style before producing your draft.",
                     "在生成草稿前，配置输出语言、模板与生成风格。",
                   )}
                 </p>
-                <div className="mt-3 space-y-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600">
+                <div className="mt-3 space-y-1 rounded-2xl border border-slate-600/45 bg-slate-900/76 p-3 text-xs text-slate-300">
                   <p>
                     {t("Current language", "当前语言")}：{outputLanguage === "zh" ? t("Chinese", "中文") : t("English", "英文")}
                   </p>
@@ -1750,7 +1756,8 @@ export default async function BuildFlowPage({
             )}
           </div>
         </aside>
-      </div>
+        </div>
+      </Reveal>
     </div>
   );
 }

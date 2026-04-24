@@ -25,7 +25,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const uiLanguage = await getUiLanguage();
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="rf-dark-ui relative min-h-screen overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="ambient-glow ambient-glow-a" />
         <div className="ambient-glow ambient-glow-b" />

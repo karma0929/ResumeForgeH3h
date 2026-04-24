@@ -39,15 +39,15 @@ export function DashboardTopNavigation({
   );
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-slate-700/55 bg-slate-950/88 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
-        <Link className="mr-1 inline-flex items-center gap-2 text-slate-950" href="/dashboard">
-          <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-900 text-white">
+        <Link className="mr-1 inline-flex items-center gap-2 text-slate-100" href="/dashboard">
+          <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-cyan-300/35 bg-gradient-to-br from-sky-500/30 to-blue-600/35 text-cyan-100">
             <Sparkles className="h-4.5 w-4.5" />
           </span>
           <div className="leading-tight">
             <p className="text-sm font-semibold">ResumeForge</p>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-slate-400">
               {uiLanguage === "zh" ? "AI 简历工作区" : "AI Resume Workspace"}
             </p>
           </div>
@@ -60,9 +60,7 @@ export function DashboardTopNavigation({
             return (
               <Link
                 aria-current={active ? "page" : undefined}
-                className={cn(
-                  "rf-nav-pill text-sm",
-                )}
+                className={cn("rf-nav-pill text-sm")}
                 data-state={active ? "active" : "inactive"}
                 href={item.href}
                 key={item.href}
@@ -74,9 +72,7 @@ export function DashboardTopNavigation({
           })}
           {user.role === "ADMIN" ? (
             <Link
-              className={cn(
-                "rf-nav-pill ml-1 text-sm",
-              )}
+              className={cn("rf-nav-pill ml-1 text-sm")}
               data-state={isActive(pathname, "/admin") ? "active" : "inactive"}
               href="/admin"
             >
@@ -88,13 +84,13 @@ export function DashboardTopNavigation({
 
         <div className="ml-auto flex items-center gap-2">
           <LanguageSwitcher className="hidden sm:inline-flex" currentLanguage={uiLanguage} />
-          <div className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-right text-xs sm:block">
-            <p className="font-medium text-slate-900">{user.name}</p>
-            <p className="text-slate-500">{user.targetRole || user.email}</p>
+          <div className="hidden rounded-full border border-slate-600/40 bg-slate-900/80 px-3 py-1.5 text-right text-xs sm:block">
+            <p className="font-medium text-slate-100">{user.name}</p>
+            <p className="text-slate-400">{user.targetRole || user.email}</p>
           </div>
           <form action={logoutAction}>
             <button
-              className="inline-flex h-9 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex h-9 items-center rounded-full border border-slate-600/45 bg-slate-900/75 px-3 text-xs font-medium text-slate-200 hover:border-slate-400/70 hover:bg-slate-800/85"
               type="submit"
             >
               {uiLanguage === "zh" ? "退出" : "Log out"}

@@ -6,11 +6,11 @@ type ButtonSize = "sm" | "md" | "lg";
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-slate-900 text-white hover:bg-slate-800 shadow-sm shadow-slate-300 hover:shadow-slate-400",
+    "border border-cyan-400/45 bg-gradient-to-r from-sky-500/85 to-blue-600/85 text-white hover:from-sky-500 hover:to-blue-500 shadow-[0_12px_30px_-18px_rgba(14,165,233,0.85)]",
   secondary:
-    "bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-100",
-  ghost: "bg-transparent text-slate-700 hover:bg-slate-100",
-  outline: "border border-slate-200 bg-white text-slate-900 hover:bg-slate-50 shadow-sm shadow-slate-100",
+    "border border-slate-500/45 bg-slate-900/70 text-slate-100 hover:border-sky-400/55 hover:bg-slate-800/80",
+  ghost: "bg-transparent text-slate-300 hover:bg-slate-900/80 hover:text-slate-100",
+  outline: "border border-slate-500/50 bg-slate-900/65 text-slate-100 hover:border-slate-300/65 hover:bg-slate-800/80",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -35,7 +35,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center rounded-full font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60",
+        "inline-flex items-center justify-center rounded-full font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/55 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-60",
         variantClasses[variant],
         sizeClasses[size],
         className,

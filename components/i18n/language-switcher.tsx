@@ -30,7 +30,7 @@ export function LanguageSwitcher({
   }
 
   return (
-    <div className={cn("inline-flex items-center rounded-full border border-slate-200 bg-white p-1", className)}>
+    <div className={cn("inline-flex items-center rounded-full border border-slate-500/40 bg-slate-950/70 p-1 shadow-[inset_0_1px_0_rgba(186,230,253,0.06)]", className)}>
       <button
         type="button"
         disabled={pendingLanguage !== null}
